@@ -30,8 +30,6 @@
   <li>نمایش پینگ، کشور خروجی، مصرف ترافیک و گزارش‌های زنده</li>
   <li>انتخاب برنامه‌های داخل یا خارج از تونل با <span dir="ltr">App Bypass</span></li>
   <li>تنظیمات پیشرفته برای <span dir="ltr">Fragment</span>، <span dir="ltr">Finalmask</span>، <span dir="ltr">TUN</span>، مسیریابی و <span dir="ltr">Keepalive</span></li>
-  <li>کنترل سریع اتصال از نوتیفیکیشن با گزینه‌های <span dir="ltr">Disconnect</span> و <span dir="ltr">Close</span>، همراه با رفتار امن دوبار <span dir="ltr">Back</span> و بستن برنامه از <span dir="ltr">Recent Apps</span></li>
-  <li>بررسی نسخه‌های جدید از بخش <span dir="ltr">Releases</span> همین مخزن و نصب به‌روزرسانی با تأیید کاربر</li>
 </ul>
 
 <h2>نیازمندی‌ها</h2>
