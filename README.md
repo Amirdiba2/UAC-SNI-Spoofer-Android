@@ -30,7 +30,6 @@
   <li>نمایش پینگ، کشور خروجی، مصرف ترافیک و گزارش‌های زنده</li>
   <li>انتخاب برنامه‌های داخل یا خارج از تونل با <span dir="ltr">App Bypass</span></li>
   <li>تنظیمات پیشرفته برای <span dir="ltr">Fragment</span>، <span dir="ltr">Finalmask</span>، <span dir="ltr">TUN</span>، مسیریابی و <span dir="ltr">Keepalive</span></li>
-  <li>انیمیشن اتصال جدید با حلقه پیشرفت و جلوه <span dir="ltr">Glow</span></li>
   <li>بررسی نسخه‌های جدید از بخش <span dir="ltr">Releases</span> همین مخزن و نصب به‌روزرسانی با تأیید کاربر</li>
 </ul>
 
