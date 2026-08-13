@@ -880,7 +880,7 @@ class UacVpnService : VpnService() {
         const val ACTION_CLOSE = "com.uacspoofer.mobile.CLOSE"
         const val ACTION_SWITCH_PROFILE = "com.uacspoofer.mobile.SWITCH_PROFILE"
 
-        private const val TAG = "UAC-MCI"
+        private const val TAG = "UAC-SNI"
         private const val NOTIFICATION_CHANNEL = "uac_mci_vpn"
         private const val NOTIFICATION_ID = 1001
         private const val NOTIFICATION_DISCONNECT_REQUEST = 1002

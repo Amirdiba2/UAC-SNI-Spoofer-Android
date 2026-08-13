@@ -75,9 +75,9 @@ data class ProxyProfile(
     companion object {
         const val BUILT_IN_ID = "builtin:mci"
 
-        val MCI_BUILT_IN = ProxyProfile(
+        val UAC_SNI_BUILT_IN = ProxyProfile(
             id = BUILT_IN_ID,
-            name = "MCI built-in",
+            name = "UAC SNI built-in",
             protocol = ProxyProtocol.TROJAN,
             credential = "humanity",
             serverHost = "www.ignitelimit.com",
@@ -117,7 +117,7 @@ data class ProfileLibrary(
     val customProfiles: List<ProxyProfile>,
     val selectedId: String,
 ) {
-    val allProfiles: List<ProxyProfile> get() = listOf(ProxyProfile.MCI_BUILT_IN) + customProfiles
+    val allProfiles: List<ProxyProfile> get() = listOf(ProxyProfile.UAC_SNI_BUILT_IN) + customProfiles
     val selectedProfile: ProxyProfile
-        get() = allProfiles.firstOrNull { it.id == selectedId } ?: ProxyProfile.MCI_BUILT_IN
+        get() = allProfiles.firstOrNull { it.id == selectedId } ?: ProxyProfile.UAC_SNI_BUILT_IN
 }

@@ -46,7 +46,7 @@ object ProfileUriParser {
         val network = (query["type"] ?: query["network"] ?: "ws").lowercase()
         require(network in supportedNetworks) { "Unsupported transport: $network" }
         val security = (query["security"] ?: "tls").lowercase()
-        require(security == "tls") { "MCI mode requires TLS security" }
+        require(security == "tls") { "UAC SNI requires TLS security" }
         val headerType = query["headertype"].orEmpty().lowercase()
         require(headerType.isBlank() || headerType == "none") { "Unsupported TCP header type: $headerType" }
 

@@ -36,7 +36,7 @@ class MciXrayCore(
     suspend fun start(
         edge: MciEdge,
         settings: AdvancedSettingsData = AdvancedSettingsData.DEFAULT,
-        profile: ProxyProfile = ProxyProfile.MCI_BUILT_IN,
+        profile: ProxyProfile = ProxyProfile.UAC_SNI_BUILT_IN,
         runtimeOptions: MciXrayRuntimeOptions = MciXrayRuntimeOptions.DEFAULT,
     ): XrayStartupTiming = lifecycleMutex.withLock {
         stopLocked()
@@ -166,7 +166,7 @@ class MciXrayCore(
     }
 
     companion object {
-        private const val TAG = "UAC-MCI"
+        private const val TAG = "UAC-SNI"
         private const val XRAY_START_TIMEOUT_MS = 5_000L
         private const val XRAY_GRACEFUL_STOP_MS = 1_000L
         private const val XRAY_FORCE_STOP_MS = 2_000L
@@ -174,7 +174,7 @@ class MciXrayCore(
         internal fun buildConfig(
             edge: MciEdge = MciConfig.PRIMARY_EDGE,
             settings: AdvancedSettingsData = AdvancedSettingsData.DEFAULT,
-            profile: ProxyProfile = ProxyProfile.MCI_BUILT_IN,
+            profile: ProxyProfile = ProxyProfile.UAC_SNI_BUILT_IN,
             runtimeOptions: MciXrayRuntimeOptions = MciXrayRuntimeOptions.DEFAULT,
         ): String = MciXrayConfigBuilder.build(
             edge,

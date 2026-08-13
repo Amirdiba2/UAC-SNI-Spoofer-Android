@@ -8,7 +8,7 @@ internal object MciNativeXrayConfig {
     fun build(
         edge: MciEdge = MciConfig.PRIMARY_EDGE,
         settings: AdvancedSettingsData = AdvancedSettingsData.DEFAULT,
-        profile: ProxyProfile = ProxyProfile.MCI_BUILT_IN,
+        profile: ProxyProfile = ProxyProfile.UAC_SNI_BUILT_IN,
         runtimeOptions: MciXrayRuntimeOptions = MciXrayRuntimeOptions.DEFAULT,
     ): String = MciXrayConfigBuilder.build(
         edge,

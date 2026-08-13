@@ -608,7 +608,7 @@ class AdaptiveCandidatePlanner(private val store: AdaptiveProfileStore) {
                     add(
                         AdaptiveCandidate(
                             id = MCI_DIRECT_COMPAT_ID,
-                            label = "MCI direct profile compatibility",
+                            label = "Direct profile compatibility",
                             edge = MciEdge(
                                 address = direct.address,
                                 port = direct.port,
@@ -625,30 +625,30 @@ class AdaptiveCandidatePlanner(private val store: AdaptiveProfileStore) {
                         ),
                     )
                 }
-                add(candidate("mci-primary-google", "MCI primary + Google DNS", primary, settings, AdaptiveDnsResolvers.GOOGLE))
-                add(candidate("mci-primary-cloudflare-fast", "MCI low delay + Cloudflare DNS", primary, settings.copy(finalmaskDelayMs = 0), AdaptiveDnsResolvers.CLOUDFLARE))
+                add(candidate("uac-primary-google", "UAC SNI primary + Google DNS", primary, settings, AdaptiveDnsResolvers.GOOGLE))
+                add(candidate("uac-primary-cloudflare-fast", "UAC SNI low delay + Cloudflare DNS", primary, settings.copy(finalmaskDelayMs = 0), AdaptiveDnsResolvers.CLOUDFLARE))
                 MCI_EDGE_POOL_ADDRESSES.forEachIndexed { index, address ->
                     val edge = MciEdge(
                         address = address,
                         port = MCI_EDGE_POOL_PORT,
-                        role = "mci-pool-${index + 1}",
+                        role = "uac-pool-${index + 1}",
                         finalmaskMaxSplit = settings.primaryMaxSplit,
                     )
                     val resolver = MCI_EDGE_POOL_RESOLVERS[index % MCI_EDGE_POOL_RESOLVERS.size]
                     add(
                         candidate(
-                            id = "mci-edge-pool-${address.replace('.', '-')}",
-                            label = "MCI edge $address",
+                            id = "uac-edge-pool-${address.replace('.', '-')}",
+                            label = "UAC SNI edge $address",
                             edge = edge,
                             settings = settings,
                             resolver = resolver,
                         ),
                     )
                 }
-                add(candidate("mci-fallback-quad9", "MCI fallback + Quad9 DNS", fallback, settings, AdaptiveDnsResolvers.QUAD9))
-                add(candidate("mci-cdn-a-adguard", "MCI CDN A + AdGuard DNS", cdnRescueA, settings.copy(finalmaskDelayMs = 15), AdaptiveDnsResolvers.ADGUARD))
-                add(candidate("mci-cdn-b-opendns", "MCI CDN B + OpenDNS", cdnRescueB, settings.copy(finalmaskDelayMs = 0), AdaptiveDnsResolvers.OPENDNS))
-                add(candidate("mci-primary-deep-google", "MCI deep-fragment rescue", primary.copy(finalmaskMaxSplit = 100), settings.copy(finalmaskDelayMs = 5), AdaptiveDnsResolvers.GOOGLE))
+                add(candidate("uac-fallback-quad9", "UAC SNI fallback + Quad9 DNS", fallback, settings, AdaptiveDnsResolvers.QUAD9))
+                add(candidate("uac-cdn-a-adguard", "UAC SNI CDN A + AdGuard DNS", cdnRescueA, settings.copy(finalmaskDelayMs = 15), AdaptiveDnsResolvers.ADGUARD))
+                add(candidate("uac-cdn-b-opendns", "UAC SNI CDN B + OpenDNS", cdnRescueB, settings.copy(finalmaskDelayMs = 0), AdaptiveDnsResolvers.OPENDNS))
+                add(candidate("uac-primary-deep-google", "UAC SNI deep-fragment rescue", primary.copy(finalmaskMaxSplit = 100), settings.copy(finalmaskDelayMs = 5), AdaptiveDnsResolvers.GOOGLE))
             }
             "irancell" -> listOf(
                 candidate("irancell-deep-cloudflare", "Irancell deep + Cloudflare DNS", irancell, settings, AdaptiveDnsResolvers.CLOUDFLARE),
@@ -695,8 +695,8 @@ class AdaptiveCandidatePlanner(private val store: AdaptiveProfileStore) {
 
     companion object {
         const val MAX_CANDIDATES = 11
-        private const val STRATEGY_VERSION = "adaptive-v5-mci-direct-compat"
-        const val MCI_DIRECT_COMPAT_ID = "mci-direct-compat"
+        private const val STRATEGY_VERSION = "adaptive-v6-uac-branding"
+        const val MCI_DIRECT_COMPAT_ID = "uac-direct-compat"
         private const val MCI_EDGE_POOL_PORT = 443
         private val MCI_EDGE_POOL_ADDRESSES = listOf(
             "104.26.14.85",

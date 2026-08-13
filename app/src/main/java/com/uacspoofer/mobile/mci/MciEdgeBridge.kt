@@ -326,7 +326,7 @@ class MciEdgeBridge(
     }
 
     companion object {
-        private const val TAG = "UAC-MCI"
+        private const val TAG = "UAC-SNI"
         private const val TLS_RECORD_HEADER_BYTES = 5
         private const val TLS_HANDSHAKE_CONTENT_TYPE = 0x16
         private const val MAX_TLS_RECORD_PAYLOAD_BYTES = 18 * 1024

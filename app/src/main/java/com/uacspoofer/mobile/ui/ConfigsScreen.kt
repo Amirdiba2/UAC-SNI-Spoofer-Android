@@ -544,7 +544,7 @@ private fun ConfigsTopBar(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                if (selectionMode) "Tap profiles to mark them" else if (count == 0) "MCI profile" else "$count custom profile${if (count == 1) "" else "s"}",
+                if (selectionMode) "Tap profiles to mark them" else if (count == 0) "UAC SNI built-in" else "$count custom profile${if (count == 1) "" else "s"}",
                 color = UacColors.TextSecondary,
                 fontSize = 11.sp,
             )
@@ -726,9 +726,9 @@ private fun ProfileRow(
             if (selected || active || delayState != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (active) {
-                Text("MCI tuned / connected", color = accent, fontSize = 9.sp, fontWeight = FontWeight.Medium)
+                Text("UAC SNI / connected", color = accent, fontSize = 9.sp, fontWeight = FontWeight.Medium)
                     } else if (selected) {
-                Text("MCI tuned / selected", color = accent, fontSize = 9.sp, fontWeight = FontWeight.Medium)
+                Text("UAC SNI / selected", color = accent, fontSize = 9.sp, fontWeight = FontWeight.Medium)
                     }
                     Spacer(Modifier.weight(1f))
                     when (delayState) {
@@ -955,7 +955,7 @@ private fun ProfileEditorSheet(
                 supportingText = error?.let { message -> { Text(message, color = Color(0xFFFF7A88)) } },
             )
             Text(
-                "Profile identity is used with the app's MCI edge, fragmentation and tunnel settings.",
+                "Profile identity is used with UAC SNI adaptive edge, fragmentation and tunnel settings.",
                 color = UacColors.TextSecondary,
                 fontSize = 10.sp,
             )

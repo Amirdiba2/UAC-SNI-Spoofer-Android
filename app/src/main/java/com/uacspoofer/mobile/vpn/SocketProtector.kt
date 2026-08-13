@@ -34,6 +34,6 @@ class VpnSocketProtector(
     }
 
     companion object {
-        private const val TAG = "UAC-MCI"
+        private const val TAG = "UAC-SNI"
     }
 }

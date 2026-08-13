@@ -62,7 +62,7 @@ class ConfigsSortTest {
         assertEquals(listOf("c", "a", "b", "d"), sorted.map(ProxyProfile::id))
     }
 
-    private fun profile(id: String): ProxyProfile = ProxyProfile.MCI_BUILT_IN.copy(
+    private fun profile(id: String): ProxyProfile = ProxyProfile.UAC_SNI_BUILT_IN.copy(
         id = id,
         name = id,
         isBuiltIn = false,

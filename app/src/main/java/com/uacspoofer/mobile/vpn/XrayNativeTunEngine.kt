@@ -27,7 +27,7 @@ class XrayNativeTunEngine(private val context: Context) {
     fun start(
         edge: MciEdge,
         settings: AdvancedSettingsData,
-        profile: ProxyProfile = ProxyProfile.MCI_BUILT_IN,
+        profile: ProxyProfile = ProxyProfile.UAC_SNI_BUILT_IN,
         runtimeOptions: MciXrayRuntimeOptions = MciXrayRuntimeOptions.DEFAULT,
         establishTun: () -> ParcelFileDescriptor?,
     ) {

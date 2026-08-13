@@ -85,7 +85,7 @@ class MciConnector(
     }
 
     companion object {
-        private const val TAG = "UAC-MCI"
+        private const val TAG = "UAC-SNI"
 
         
         private const val TCP_KEEPIDLE = 4

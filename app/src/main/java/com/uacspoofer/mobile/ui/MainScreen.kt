@@ -9,8 +9,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -36,7 +34,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -61,6 +58,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -365,9 +363,8 @@ fun MainScreen(
                 visible = backPromptVisible,
                 connected = backPromptConnected,
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                    .fillMaxSize()
+                    .zIndex(100f),
             )
         }
     }
@@ -383,69 +380,77 @@ private fun DoubleBackPrompt(
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = fadeIn(tween(180)) +
-            slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it / 2 } +
-            scaleIn(tween(220, easing = FastOutSlowInEasing), initialScale = 0.94f),
-        exit = fadeOut(tween(150)) +
-            slideOutVertically(tween(200, easing = FastOutSlowInEasing)) { it / 3 } +
-            scaleOut(tween(160), targetScale = 0.97f),
+        enter = fadeIn(tween(170)) +
+            scaleIn(tween(220, easing = FastOutSlowInEasing), initialScale = 0.985f),
+        exit = fadeOut(tween(140)) +
+            scaleOut(tween(150), targetScale = 0.995f),
     ) {
-        Row(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .shadow(24.dp, RoundedCornerShape(20.dp), ambientColor = accent, spotColor = accent)
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            Color(0xF20A1723),
-                            accent.copy(alpha = 0.20f),
-                            Color(0xF20A1723),
-                        ),
-                    ),
-                    RoundedCornerShape(20.dp),
-                )
-                .border(1.dp, accent.copy(alpha = 0.48f), RoundedCornerShape(20.dp))
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .fillMaxSize()
+                .background(Color(0xB8040A11))
+                .padding(WindowInsets.safeDrawing.asPaddingValues()),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
+            Row(
                 modifier = Modifier
-                    .size(42.dp)
-                    .background(accent.copy(alpha = 0.16f), CircleShape)
-                    .border(1.dp, accent.copy(alpha = 0.38f), CircleShape),
-                contentAlignment = Alignment.Center,
+                    .padding(horizontal = 22.dp)
+                    .widthIn(max = 360.dp)
+                    .fillMaxWidth()
+                    .shadow(32.dp, RoundedCornerShape(22.dp), ambientColor = accent, spotColor = accent)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color(0xFF07131F),
+                                Color(0xFF0B232B),
+                                Color(0xFF07131F),
+                            ),
+                        ),
+                        RoundedCornerShape(22.dp),
+                    )
+                    .border(1.2.dp, accent.copy(alpha = 0.78f), RoundedCornerShape(22.dp))
+                    .padding(horizontal = 18.dp, vertical = 17.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = if (connected) {
-                        Icons.Outlined.KeyboardDoubleArrowDown
-                    } else {
-                        Icons.Outlined.PowerSettingsNew
-                    },
-                    contentDescription = null,
-                    tint = accent,
-                    modifier = Modifier.size(23.dp),
-                )
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(accent.copy(alpha = 0.18f), CircleShape)
+                        .border(1.2.dp, accent.copy(alpha = 0.62f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = if (connected) {
+                            Icons.Outlined.KeyboardDoubleArrowDown
+                        } else {
+                            Icons.Outlined.PowerSettingsNew
+                        },
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+                Spacer(Modifier.size(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (connected) "Keep VPN running" else "Close the app",
+                        color = Color.White,
+                        fontSize = 15.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.size(4.dp))
+                    Text(
+                        text = if (connected) {
+                            "Press back again to minimize"
+                        } else {
+                            "Press back again to exit completely"
+                        },
+                        color = Color(0xFFB8C8D4),
+                        fontSize = 12.5.sp,
+                    )
+                }
+                Box(Modifier.size(8.dp).background(accent, CircleShape))
             }
-            Spacer(Modifier.size(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = if (connected) "Keep VPN running" else "Close the app",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.size(3.dp))
-                Text(
-                    text = if (connected) {
-                        "Press back again to minimize"
-                    } else {
-                        "Press back again to exit completely"
-                    },
-                    color = UacColors.TextSecondary,
-                    fontSize = 11.5.sp,
-                )
-            }
-            Box(Modifier.size(7.dp).background(accent, CircleShape))
         }
     }
 }
@@ -453,7 +458,7 @@ private fun DoubleBackPrompt(
 @Composable
 private fun HomeScreenContent(
     state: ConnectionState,
-    profile: ProxyProfile = ProxyProfile.MCI_BUILT_IN,
+    profile: ProxyProfile = ProxyProfile.UAC_SNI_BUILT_IN,
     motionEnabled: Boolean = true,
     onPrimaryAction: () -> Unit,
     onMenuClick: () -> Unit,
