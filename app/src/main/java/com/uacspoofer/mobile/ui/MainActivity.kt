@@ -54,6 +54,8 @@ class MainActivity : ComponentActivity() {
                         onConnect = ::beginConnect,
                         onDisconnect = ::beginDisconnect,
                         onSwitchProfile = ::beginProfileSwitch,
+                        onMinimize = { moveTaskToBack(true) },
+                        onCloseApp = { closeAppFromBack(state) },
                     )
                 }
             }
@@ -122,5 +124,12 @@ class MainActivity : ComponentActivity() {
         } catch (_: Throwable) {
             ConnectionStateStore.markError()
         }
+    }
+
+    private fun closeAppFromBack(state: ConnectionState) {
+        if (state == ConnectionState.CONNECTING || state == ConnectionState.DISCONNECTING) {
+            runCatching { VpnController.close(this) }
+        }
+        finishAndRemoveTask()
     }
 }

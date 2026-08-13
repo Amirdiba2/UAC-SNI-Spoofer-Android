@@ -16,6 +16,11 @@ object VpnController {
         context.startService(intent)
     }
 
+    fun close(context: Context) {
+        val intent = Intent(context, UacVpnService::class.java).setAction(UacVpnService.ACTION_CLOSE)
+        context.startService(intent)
+    }
+
     fun switchProfile(context: Context) {
         val intent = Intent(context, UacVpnService::class.java).setAction(UacVpnService.ACTION_SWITCH_PROFILE)
         context.startService(intent)

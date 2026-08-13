@@ -1,6 +1,7 @@
 package com.uacspoofer.mobile.vpn
 
 import android.app.Notification
+import android.app.ActivityManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -14,6 +15,7 @@ import android.os.SystemClock
 import android.system.OsConstants
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.uacspoofer.mobile.R
 import com.uacspoofer.mobile.core.ConnectionState
 import com.uacspoofer.mobile.core.ConnectionStateStore
@@ -95,6 +97,7 @@ class UacVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_DISCONNECT -> requestDisconnect()
+            ACTION_CLOSE -> requestDisconnect(closeAppTasks = true)
             ACTION_SWITCH_PROFILE -> requestSwitchProfile()
             ACTION_CONNECT, null -> requestConnect()
         }
@@ -106,6 +109,12 @@ class UacVpnService : VpnService() {
     override fun onRevoke() {
         requestDisconnect()
         super.onRevoke()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        AppLogRepository.info(LogSource.SERVICE, "App task removed; disconnecting active connection")
+        requestDisconnect()
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
@@ -168,7 +177,7 @@ class UacVpnService : VpnService() {
         job.invokeOnCompletion { if (connectJob === job) connectJob = null }
     }
 
-    private fun requestDisconnect() {
+    private fun requestDisconnect(closeAppTasks: Boolean = false) {
         AppLogRepository.info(LogSource.SERVICE, "Disconnect requested")
         ConnectionStateStore.tryBeginDisconnect()
         generation.incrementAndGet()
@@ -197,7 +206,14 @@ class UacVpnService : VpnService() {
             ConnectionStateStore.markDisconnected()
             AppLogRepository.info(LogSource.SERVICE, "Disconnected; connection resources released")
             stopForeground(STOP_FOREGROUND_REMOVE)
+            if (closeAppTasks) finishAppTasks()
             stopSelf()
+        }
+    }
+
+    private fun finishAppTasks() {
+        getSystemService(ActivityManager::class.java).appTasks.forEach { task ->
+            runCatching { task.finishAndRemoveTask() }
         }
     }
 
@@ -818,26 +834,57 @@ class UacVpnService : VpnService() {
             Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val disconnect = PendingIntent.getService(
+            this,
+            NOTIFICATION_DISCONNECT_REQUEST,
+            Intent(this, UacVpnService::class.java).setAction(ACTION_DISCONNECT),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val close = PendingIntent.getService(
+            this,
+            NOTIFICATION_CLOSE_REQUEST,
+            Intent(this, UacVpnService::class.java).setAction(ACTION_CLOSE),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val message = getString(textRes)
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_vpn)
             .setContentTitle(getString(R.string.app_name))
-            .setContentText(getString(textRes))
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setContentIntent(openApp)
+            .setColor(ContextCompat.getColor(this, R.color.notification_accent))
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setSilent(true)
             .setShowWhen(false)
+            .addAction(
+                R.drawable.ic_notification_disconnect,
+                getString(R.string.notification_disconnect),
+                disconnect,
+            )
+            .addAction(
+                R.drawable.ic_notification_close,
+                getString(R.string.notification_close),
+                close,
+            )
             .build()
     }
 
     companion object {
         const val ACTION_CONNECT = "com.uacspoofer.mobile.CONNECT"
         const val ACTION_DISCONNECT = "com.uacspoofer.mobile.DISCONNECT"
+        const val ACTION_CLOSE = "com.uacspoofer.mobile.CLOSE"
         const val ACTION_SWITCH_PROFILE = "com.uacspoofer.mobile.SWITCH_PROFILE"
 
         private const val TAG = "UAC-MCI"
         private const val NOTIFICATION_CHANNEL = "uac_mci_vpn"
         private const val NOTIFICATION_ID = 1001
+        private const val NOTIFICATION_DISCONNECT_REQUEST = 1002
+        private const val NOTIFICATION_CLOSE_REQUEST = 1003
         private const val STATS_INTERVAL_MS = 1_000L
         private const val LATENCY_SAMPLE_COUNT = 3
         private const val LATENCY_SAMPLE_DELAY_MS = 350L

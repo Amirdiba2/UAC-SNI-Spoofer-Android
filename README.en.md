@@ -28,6 +28,7 @@ Current version: **2.0.0**
 - Per-app tunnel selection through App Bypass
 - Advanced Fragment, Finalmask, TUN, routing, and keepalive controls
 - A polished connection progress ring with a glow effect
+- Quick notification controls for Disconnect and Close, plus safe double-back and Recent Apps behavior
 - Update checks through this repository's Releases section, followed by user-approved installation
 
 ## Requirements

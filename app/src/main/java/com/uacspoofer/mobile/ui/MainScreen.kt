@@ -3,9 +3,14 @@ package com.uacspoofer.mobile.ui
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -13,6 +18,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -30,6 +36,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -65,9 +72,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.shadow
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.KeyboardDoubleArrowDown
+import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material3.Icon
 import com.uacspoofer.mobile.core.ConnectionState
 import com.uacspoofer.mobile.profiles.ProfileStore
@@ -86,6 +97,7 @@ import com.uacspoofer.mobile.update.InstallLaunchResult
 import com.uacspoofer.mobile.update.UpdateCheckResult
 import com.uacspoofer.mobile.update.UpdateUiState
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlin.math.abs
 
 @Composable
@@ -94,6 +106,8 @@ fun MainScreen(
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onSwitchProfile: () -> Unit,
+    onMinimize: () -> Unit,
+    onCloseApp: () -> Unit,
 ) {
     val context = LocalContext.current
     val profileStore = remember(context) { ProfileStore(context) }
@@ -116,6 +130,8 @@ fun MainScreen(
     var homeConfigLatencies by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
     var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Idle) }
     var updateDialogVisible by remember { mutableStateOf(false) }
+    var backPromptVisible by remember { mutableStateOf(false) }
+    var backPromptConnected by remember { mutableStateOf(false) }
 
     suspend fun performUpdateCheck() {
         updateState = UpdateUiState.Checking
@@ -207,6 +223,28 @@ fun MainScreen(
     BackHandler(enabled = drawerState.isOpen) { closeDrawer() }
     BackHandler(enabled = drawerState.isClosed && selectedDestination != DrawerDestination.HOME) {
         selectedDestination = DrawerDestination.HOME
+    }
+    BackHandler(
+        enabled = drawerState.isClosed &&
+            selectedDestination == DrawerDestination.HOME &&
+            !homeConfigsVisible &&
+            !updateDialogVisible,
+    ) {
+        val connected = state == ConnectionState.CONNECTED
+        if (backPromptVisible && backPromptConnected == connected) {
+            backPromptVisible = false
+            if (connected) onMinimize() else onCloseApp()
+        } else {
+            backPromptConnected = connected
+            backPromptVisible = true
+        }
+    }
+
+    LaunchedEffect(backPromptVisible, backPromptConnected) {
+        if (backPromptVisible) {
+            delay(DOUBLE_BACK_WINDOW_MS)
+            backPromptVisible = false
+        }
     }
 
     LaunchedEffect(selectedDestination, state) {
@@ -323,6 +361,91 @@ fun MainScreen(
                     onDismiss = { updateDialogVisible = false },
                 )
             }
+            DoubleBackPrompt(
+                visible = backPromptVisible,
+                connected = backPromptConnected,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DoubleBackPrompt(
+    visible: Boolean,
+    connected: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val accent = if (connected) UacColors.ConnectedGreen else UacColors.DisconnectedBlue
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn(tween(180)) +
+            slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it / 2 } +
+            scaleIn(tween(220, easing = FastOutSlowInEasing), initialScale = 0.94f),
+        exit = fadeOut(tween(150)) +
+            slideOutVertically(tween(200, easing = FastOutSlowInEasing)) { it / 3 } +
+            scaleOut(tween(160), targetScale = 0.97f),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(24.dp, RoundedCornerShape(20.dp), ambientColor = accent, spotColor = accent)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xF20A1723),
+                            accent.copy(alpha = 0.20f),
+                            Color(0xF20A1723),
+                        ),
+                    ),
+                    RoundedCornerShape(20.dp),
+                )
+                .border(1.dp, accent.copy(alpha = 0.48f), RoundedCornerShape(20.dp))
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(accent.copy(alpha = 0.16f), CircleShape)
+                    .border(1.dp, accent.copy(alpha = 0.38f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (connected) {
+                        Icons.Outlined.KeyboardDoubleArrowDown
+                    } else {
+                        Icons.Outlined.PowerSettingsNew
+                    },
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(23.dp),
+                )
+            }
+            Spacer(Modifier.size(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = if (connected) "Keep VPN running" else "Close the app",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.size(3.dp))
+                Text(
+                    text = if (connected) {
+                        "Press back again to minimize"
+                    } else {
+                        "Press back again to exit completely"
+                    },
+                    color = UacColors.TextSecondary,
+                    fontSize = 11.5.sp,
+                )
+            }
+            Box(Modifier.size(7.dp).background(accent, CircleShape))
         }
     }
 }
@@ -514,6 +637,7 @@ private data class DrawerMotionSnapshot(
 )
 
 private const val DRAWER_CLOSED_EPSILON_PX = 0.5f
+private const val DOUBLE_BACK_WINDOW_MS = 2_200L
 
 @Preview(name = "Home - Disconnected", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
