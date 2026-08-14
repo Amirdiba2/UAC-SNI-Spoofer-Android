@@ -12,7 +12,7 @@
 
 <p><span dir="ltr">UAC SNI Spoofer</span> یک ابزار متن‌باز برای مدیریت اتصال‌های امن در اندروید است. برنامه از مسیر بومی <span dir="ltr">VPN/TUN</span> و هسته <span dir="ltr">Xray</span> استفاده می‌کند و برای اتصال سریع، مدیریت کانفیگ‌ها و بررسی وضعیت واقعی شبکه طراحی شده است.</p>
 
-<p>نسخه فعلی: <strong><span dir="ltr">2.0.0</span></strong></p>
+<p>نسخه فعلی: <a href="https://github.com/Floxu1/UAC-SNI-Spoofer-Android/releases/latest"><img src="https://img.shields.io/github/v/release/Floxu1/UAC-SNI-Spoofer-Android?display_name=tag&amp;sort=semver&amp;label=version" alt="آخرین نسخه منتشرشده"></a></p>
 
 <h2>امکانات</h2>
 
