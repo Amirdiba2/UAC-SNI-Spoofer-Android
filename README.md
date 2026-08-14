@@ -2,6 +2,9 @@
 
 # UAC SNI Spoofer Android
 
+<img width="1672" height="941" alt="5ddf67f8-f5b8-4eb9-94c3-8e324ee5f816" src="https://github.com/user-attachments/assets/f99d9c99-a01b-43f7-b3f1-f4077d45cf27" />
+
+
 <a href="./README.md">فارسی</a> · <a href="./README.en.md">English</a>
 
 </div>
