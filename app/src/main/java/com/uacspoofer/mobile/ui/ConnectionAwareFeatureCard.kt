@@ -164,6 +164,7 @@ private fun ConnectedInsightsCard(
     onCountryClick: () -> Unit,
     onLogClick: () -> Unit,
 ) {
+    val isPersian = LocalHomePersian.current
     val shape = RoundedCornerShape(if (compact) 15.dp else 17.dp)
     Row(
         modifier = Modifier
@@ -175,10 +176,14 @@ private fun ConnectedInsightsCard(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         InsightItem(
-            title = "PING",
+            title = homeText("PING", "پینگ"),
             value = if (measuringLatency) "…" else latencyMs?.let { "$it ms" } ?: "—",
             valueColor = latencyColor(latencyMs),
-            detail = if (measuringLatency) "Testing route" else latencyQuality(latencyMs),
+            detail = if (measuringLatency) {
+                homeText("Testing route", "در حال تست مسیر")
+            } else {
+                latencyQuality(latencyMs, isPersian)
+            },
             detailColor = if (measuringLatency) UacColors.DisconnectedBlue else latencyColor(latencyMs),
             icon = Icons.Outlined.Speed,
             loading = measuringLatency,
@@ -188,8 +193,8 @@ private fun ConnectedInsightsCard(
         )
         InsightDivider()
         InsightItem(
-            title = "COUNTRY",
-            value = country.countryName.takeIf { country.isKnown } ?: "Unknown",
+            title = homeText("COUNTRY", "کشور"),
+            value = country.countryName.takeIf { country.isKnown } ?: homeText("Unknown", "نامشخص"),
             valueColor = Color.White,
             detail = country.countryCode ?: countryFallback,
             detailColor = UacColors.TextSecondary,
@@ -201,10 +206,14 @@ private fun ConnectedInsightsCard(
         )
         InsightDivider()
         InsightItem(
-            title = "LOG",
+            title = homeText("LOG", "لاگ"),
             value = logCount.toString(),
             valueColor = Color.White,
-            detail = if (errorCount == 0) "No errors" else "$errorCount errors",
+            detail = if (errorCount == 0) {
+                homeText("No errors", "بدون خطا")
+            } else {
+                if (isPersian) "$errorCount خطا" else "$errorCount errors"
+            },
             detailColor = if (errorCount == 0) UacColors.ConnectedGreen else Color(0xFFFF7483),
             icon = Icons.Outlined.Description,
             compact = compact,
@@ -228,6 +237,7 @@ private fun InsightItem(
     modifier: Modifier,
     leadingValue: (@Composable () -> Unit)? = null,
 ) {
+    val localizedFont = homeLocalizedFont()
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
@@ -248,7 +258,13 @@ private fun InsightItem(
             }
         }
         Spacer(Modifier.height(1.dp))
-        Text(title, color = Color.White, fontSize = if (compact) 8.5.sp else 9.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            title,
+            color = Color.White,
+            fontSize = if (compact) 8.5.sp else 9.sp,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = localizedFont,
+        )
         Spacer(Modifier.height(2.dp))
         Row(
             modifier = Modifier
@@ -264,6 +280,7 @@ private fun InsightItem(
                 color = valueColor,
                 fontSize = if (compact) 12.sp else 13.sp,
                 fontWeight = FontWeight.Bold,
+                fontFamily = localizedFont,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
@@ -277,7 +294,14 @@ private fun InsightItem(
         ) {
             Box(Modifier.size(5.dp).background(detailColor, CircleShape))
             Spacer(Modifier.width(4.dp))
-            Text(detail, color = detailColor, fontSize = if (compact) 8.sp else 8.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                detail,
+                color = detailColor,
+                fontSize = if (compact) 8.sp else 8.5.sp,
+                fontFamily = localizedFont,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -293,12 +317,12 @@ private fun InsightDivider() {
     Box(Modifier.fillMaxHeight(0.62f).width(1.dp).background(Color.White.copy(alpha = 0.10f)))
 }
 
-private fun latencyQuality(latencyMs: Long?): String = when {
-    latencyMs == null -> "Measuring"
-    latencyMs <= 120L -> "Excellent"
-    latencyMs <= 250L -> "Good"
-    latencyMs <= 500L -> "Fair"
-    else -> "Slow"
+private fun latencyQuality(latencyMs: Long?, isPersian: Boolean): String = when {
+    latencyMs == null -> if (isPersian) "در حال سنجش" else "Measuring"
+    latencyMs <= 120L -> if (isPersian) "عالی" else "Excellent"
+    latencyMs <= 250L -> if (isPersian) "خوب" else "Good"
+    latencyMs <= 500L -> if (isPersian) "متوسط" else "Fair"
+    else -> if (isPersian) "کند" else "Slow"
 }
 
 private fun latencyColor(latencyMs: Long?): Color = when {

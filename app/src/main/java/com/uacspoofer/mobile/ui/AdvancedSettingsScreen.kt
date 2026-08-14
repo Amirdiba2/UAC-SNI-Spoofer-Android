@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Tune
@@ -26,7 +27,7 @@ import com.uacspoofer.mobile.ui.theme.UacColors
 
 private data class SettingField(val key:String,val label:String,val value:String,val secret:Boolean=false)
 
-@Composable internal fun AdvancedSettingsScreen(onMenuClick:()->Unit) {
+@Composable internal fun AdvancedSettingsScreen(onBackClick:()->Unit) {
     val context=LocalContext.current
     val store=remember(context){AdvancedSettingsStore(context)}
     var data by remember{mutableStateOf(store.snapshot())}
@@ -37,7 +38,7 @@ private data class SettingField(val key:String,val label:String,val value:String
     fun update(k:String,v:String){text=text.toMutableMap().also{it[k]=v}}
     fun fields(vararg pairs:Pair<String,String>)=pairs.map{SettingField(it.first,it.second,text[it.first].orEmpty(),it.first=="trojanPassword")}
     ToolPageBackground(accent){LazyColumn(Modifier.fillMaxSize().padding(WindowInsets.safeDrawing.asPaddingValues()).padding(horizontal=18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-        item{Spacer(Modifier.height(10.dp));ToolPageHeader("Advanced Settings","Complete runtime connection controls",Icons.Outlined.Tune,accent,onMenuClick)}
+        item{Spacer(Modifier.height(10.dp));ToolPageHeader(title=homeText("Advanced Settings","تنظیمات پیشرفته"),subtitle=homeText("Complete runtime connection controls","کنترل کامل تنظیمات اتصال"),icon=Icons.Outlined.Tune,accent=accent,onMenuClick=onBackClick,navigationIcon=Icons.AutoMirrored.Outlined.ArrowBack,navigationDescription=homeText("Back to settings","برگشت به تنظیمات"))}
         item{ConnectionModeSelector(data.connectionMode){data=data.copy(connectionMode=it);notice="Changes are applied on the next connection"}}
         item{Group("Primary edge",fields("primaryAddress" to "Address","primaryPort" to "Port","primaryMaxSplit" to "Max split"),::update)}
         item{Group("Irancell edge",fields("irancellAddress" to "Address","irancellPort" to "Port","irancellMaxSplit" to "Max split"),::update)}

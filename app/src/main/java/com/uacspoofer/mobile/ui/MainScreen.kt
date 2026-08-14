@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -113,10 +114,11 @@ fun MainScreen(
     val countryRepository = remember(context) { ProfileCountryRepository.get(context) }
     val advancedSettings = remember(context) { AdvancedSettingsStore(context) }
     val sniMakerController = remember(context.applicationContext) { SniMakerController(context) }
+    val routeSpeedTestController = remember(context.applicationContext) { RouteSpeedTestController.get(context) }
     val updateManager = remember(context.applicationContext) { AppUpdateManager(context.applicationContext) }
     val activity = context as? Activity
     var selectedDestination by rememberSaveable { mutableStateOf(DrawerDestination.HOME) }
-    var selectedLanguage by rememberSaveable { mutableStateOf(DrawerLanguage.ENGLISH) }
+    var selectedLanguage by rememberSaveable { mutableStateOf(DrawerLanguage.PERSIAN) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val drawerScope = rememberCoroutineScope()
     var drawerWidthPx by remember { mutableIntStateOf(0) }
@@ -147,7 +149,9 @@ fun MainScreen(
     }
 
     DisposableEffect(sniMakerController) {
-        onDispose { sniMakerController.close() }
+        onDispose {
+            sniMakerController.close()
+        }
     }
     LaunchedEffect(updateManager) {
         performUpdateCheck()
@@ -220,7 +224,11 @@ fun MainScreen(
 
     BackHandler(enabled = drawerState.isOpen) { closeDrawer() }
     BackHandler(enabled = drawerState.isClosed && selectedDestination != DrawerDestination.HOME) {
-        selectedDestination = DrawerDestination.HOME
+        selectedDestination = if (selectedDestination == DrawerDestination.ADVANCED_SETTINGS) {
+            DrawerDestination.SETTINGS
+        } else {
+            DrawerDestination.HOME
+        }
     }
     BackHandler(
         enabled = drawerState.isClosed &&
@@ -286,6 +294,9 @@ fun MainScreen(
             )
         },
     ) {
+        CompositionLocalProvider(
+            LocalHomePersian provides (selectedLanguage == DrawerLanguage.PERSIAN),
+        ) {
         Box(modifier = Modifier.fillMaxSize()) {
             when (selectedDestination) {
                 DrawerDestination.CONFIGS -> ConfigsScreen(
@@ -299,9 +310,19 @@ fun MainScreen(
                     onMenuClick = openDrawer,
                     controller = sniMakerController,
                 )
+                DrawerDestination.ROUTE_SPEED_TEST -> RouteSpeedTestScreen(
+                    controller = routeSpeedTestController,
+                    onBackClick = { selectedDestination = DrawerDestination.HOME },
+                )
                 DrawerDestination.LIVE_LOGS -> LiveLogsScreen(onMenuClick = openDrawer)
                 DrawerDestination.APP_BYPASS -> AppBypassScreen(onMenuClick = openDrawer)
-                DrawerDestination.ADVANCED_SETTINGS -> AdvancedSettingsScreen(onMenuClick = openDrawer)
+                DrawerDestination.SETTINGS -> SettingsScreen(
+                    onMenuClick = openDrawer,
+                    onAdvancedSettingsClick = { selectedDestination = DrawerDestination.ADVANCED_SETTINGS },
+                )
+                DrawerDestination.ADVANCED_SETTINGS -> AdvancedSettingsScreen(
+                    onBackClick = { selectedDestination = DrawerDestination.SETTINGS },
+                )
                 DrawerDestination.SUPPORT -> SupportScreen(
                     onMenuClick = openDrawer,
                     updateState = updateState,
@@ -309,26 +330,26 @@ fun MainScreen(
                     onUpdate = beginUpdate,
                 )
                 else -> HomeScreenContent(
-                    state = state,
-                    profile = if (homeCountry.isKnown) homeProfile.copy(country = homeCountry) else homeProfile,
-                    motionEnabled = homeMotionEnabled,
-                     onPrimaryAction = when (state) {
-                         ConnectionState.CONNECTED -> onDisconnect
-                         ConnectionState.CONNECTING -> onDisconnect
-                         ConnectionState.DISCONNECTING -> ({})
-                        ConnectionState.DISCONNECTED,
-                        ConnectionState.ERROR -> onConnect
-                    },
-                    onMenuClick = openDrawer,
-                    onConfigClick = {
-                        val latestLibrary = profileStore.snapshot()
-                        homeConfigsLibrary = latestLibrary
-                        homeConfigLatencies = profileLatencyCache.snapshot(
-                            latestLibrary.allProfiles.mapTo(hashSetOf(), ProxyProfile::id),
-                        )
-                        homeConfigsVisible = true
-                    },
-                )
+                        state = state,
+                        profile = if (homeCountry.isKnown) homeProfile.copy(country = homeCountry) else homeProfile,
+                        motionEnabled = homeMotionEnabled,
+                        onPrimaryAction = when (state) {
+                            ConnectionState.CONNECTED -> onDisconnect
+                            ConnectionState.CONNECTING -> onDisconnect
+                            ConnectionState.DISCONNECTING -> ({})
+                            ConnectionState.DISCONNECTED,
+                            ConnectionState.ERROR -> onConnect
+                        },
+                        onMenuClick = openDrawer,
+                        onConfigClick = {
+                            val latestLibrary = profileStore.snapshot()
+                            homeConfigsLibrary = latestLibrary
+                            homeConfigLatencies = profileLatencyCache.snapshot(
+                                latestLibrary.allProfiles.mapTo(hashSetOf(), ProxyProfile::id),
+                            )
+                            homeConfigsVisible = true
+                        },
+                    )
             }
             HomeConfigsDialog(
                 visible = homeConfigsVisible,
@@ -366,6 +387,7 @@ fun MainScreen(
                     .fillMaxSize()
                     .zIndex(100f),
             )
+        }
         }
     }
 }
@@ -571,6 +593,7 @@ private fun SelectedProfileRow(
     maxWidth: Dp,
     modifier: Modifier = Modifier,
 ) {
+    val localizedFont = homeLocalizedFont()
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -596,7 +619,13 @@ private fun SelectedProfileRow(
     ) {
         Box(Modifier.size(6.5.dp).background(UacColors.DisconnectedBlue, CircleShape))
         Spacer(Modifier.size(7.dp))
-        Text("Selected", color = UacColors.TextSecondary, fontSize = 11.sp)
+        Text(
+            homeText("Selected", "انتخاب‌شده"),
+            color = UacColors.TextSecondary,
+            fontSize = 11.sp,
+            fontFamily = localizedFont,
+            fontWeight = if (LocalHomePersian.current) FontWeight.Medium else null,
+        )
         Spacer(Modifier.size(9.dp))
         Box(Modifier.size(width = 1.dp, height = 16.dp).background(Color.White.copy(alpha = 0.13f)))
         Spacer(Modifier.size(9.dp))
@@ -618,6 +647,7 @@ private fun SelectedProfileRow(
                 color = UacColors.DisconnectedBlue,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.Medium,
+                fontFamily = localizedFont,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

@@ -67,6 +67,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -76,6 +77,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -94,6 +96,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -116,6 +120,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private fun configLtr(value: String): String = "\u2066$value\u2069"
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun ConfigsScreen(
@@ -126,6 +132,7 @@ internal fun ConfigsScreen(
     onSwitchProfile: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val isPersian = LocalHomePersian.current
     val store = remember(context) { ProfileStore(context) }
     var library by remember { mutableStateOf(store.snapshot()) }
     val latencyCache = remember(context) { ProfileLatencyCache(context) }
@@ -227,10 +234,10 @@ internal fun ConfigsScreen(
         if (!selectionChanged && (connectionState != ConnectionState.CONNECTED || !activeChanged)) return
         if (selectionChanged) library = store.select(profile.id)
         if (connectionState == ConnectionState.CONNECTED && activeChanged) {
-        notify("Switching to ${profile.name}...")
+            notify(if (isPersian) "در حال تغییر به ${profile.name}…" else "Switching to ${profile.name}...")
             onSwitchProfile()
         } else if (selectionChanged) {
-        notify("${profile.name} selected for the next connection")
+            notify(if (isPersian) "${profile.name} برای اتصال بعدی انتخاب شد" else "${profile.name} selected for the next connection")
         }
     }
 
@@ -262,17 +269,33 @@ internal fun ConfigsScreen(
     fun consumeImportedText(text: String, optionalName: String? = null): Boolean {
         val result = store.importText(text, optionalName)
         if (result.importedCount == 0) {
-                editorError = result.errors.firstOrNull() ?: "Invalid configuration"
+            editorError = result.errors.firstOrNull() ?: if (isPersian) "کانفیگ معتبر نیست" else "Invalid configuration"
             return false
         }
         val newest = result.library.customProfiles.first()
         library = store.select(newest.id)
         editorError = result.errors.firstOrNull()
         if (connectionState == ConnectionState.CONNECTED) {
-                notify(if (result.importedCount == 1) "Configuration imported; switching..." else "${result.importedCount} configurations imported; switching...")
+            notify(
+                if (isPersian) {
+                    if (result.importedCount == 1) "کانفیگ اضافه شد؛ در حال تغییر…" else "${result.importedCount} کانفیگ اضافه شد؛ در حال تغییر…"
+                } else if (result.importedCount == 1) {
+                    "Configuration imported; switching..."
+                } else {
+                    "${result.importedCount} configurations imported; switching..."
+                },
+            )
             onSwitchProfile()
         } else {
-                notify(if (result.importedCount == 1) "Configuration imported and selected" else "${result.importedCount} configurations imported")
+            notify(
+                if (isPersian) {
+                    if (result.importedCount == 1) "کانفیگ اضافه و انتخاب شد" else "${result.importedCount} کانفیگ اضافه شد"
+                } else if (result.importedCount == 1) {
+                    "Configuration imported and selected"
+                } else {
+                    "${result.importedCount} configurations imported"
+                },
+            )
         }
         return true
     }
@@ -287,7 +310,10 @@ internal fun ConfigsScreen(
         }
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         clipboard?.setPrimaryClip(ClipData.newPlainText("UAC SNI Spoofer configurations", payload))
-        notify("${selected.size} configuration${if (selected.size == 1) "" else "s"} copied to clipboard")
+        notify(
+            if (isPersian) "${selected.size} کانفیگ در کلیپ‌بورد کپی شد"
+            else "${selected.size} configuration${if (selected.size == 1) "" else "s"} copied to clipboard",
+        )
     }
 
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
@@ -296,7 +322,10 @@ internal fun ConfigsScreen(
                 context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }.orEmpty()
             }.onSuccess { text ->
                 if (consumeImportedText(text)) editorVisible = false
-        }.onFailure { editorError = "Import failed: ${it.message ?: "invalid file"}" }
+            }.onFailure {
+                editorError = if (isPersian) "واردکردن فایل انجام نشد: ${it.message ?: "فایل نامعتبر"}"
+                else "Import failed: ${it.message ?: "invalid file"}"
+            }
         }
     }
 
@@ -314,6 +343,9 @@ internal fun ConfigsScreen(
         profileListState.scrollToItem(0)
     }
 
+    val baseTextStyle = LocalTextStyle.current
+    val localizedTextStyle = homeLocalizedFont()?.let { baseTextStyle.copy(fontFamily = it) } ?: baseTextStyle
+    CompositionLocalProvider(LocalTextStyle provides localizedTextStyle) {
     ToolPageBackground(accent = accent) {
         Box(Modifier.fillMaxSize()) {
             Column(
@@ -400,7 +432,7 @@ internal fun ConfigsScreen(
                 contentColor = Color(0xFF02101C),
                 shape = RoundedCornerShape(17.dp),
             ) {
-                    Icon(Icons.Outlined.Add, "Add configuration", modifier = Modifier.size(25.dp))
+                    Icon(Icons.Outlined.Add, homeText("Add configuration", "افزودن کانفیگ"), modifier = Modifier.size(25.dp))
             }
 
             SnackbarHost(
@@ -425,7 +457,7 @@ internal fun ConfigsScreen(
                 val clipboard = context.getSystemService(ClipboardManager::class.java)
                 val text = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
                 if (text.isBlank()) {
-                    editorError = "Clipboard has no configuration"
+                    editorError = if (isPersian) "کلیپ‌بورد کانفیگی نداره" else "Clipboard has no configuration"
                 } else if (editingId == null) {
                     editorUri = text
                     if (consumeImportedText(text, editorName.takeIf(String::isNotBlank))) editorVisible = false
@@ -442,13 +474,15 @@ internal fun ConfigsScreen(
                         check(consumeImportedText(editorUri, editorName.takeIf(String::isNotBlank)))
                     } else {
                         library = store.update(id, editorUri, editorName)
-                    notify("Configuration updated")
+                    notify(if (isPersian) "کانفیگ به‌روزرسانی شد" else "Configuration updated")
                     }
                 }.onSuccess {
                     editorVisible = false
                     editorError = null
                 }.onFailure { error ->
-                    if (editorError == null) editorError = error.message ?: "Invalid configuration"
+                    if (editorError == null) {
+                        editorError = error.message ?: if (isPersian) "کانفیگ معتبر نیست" else "Invalid configuration"
+                    }
                 }
             },
         )
@@ -458,8 +492,8 @@ internal fun ConfigsScreen(
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             containerColor = Color(0xFF101C29),
-            title = { Text("Delete ${target.name}?", color = Color.White) },
-            text = { Text("The profile will be removed from this device.", color = UacColors.TextSecondary) },
+            title = { Text(homeText("Delete ${target.name}?", "کانفیگ ${target.name} حذف بشه؟"), color = Color.White) },
+            text = { Text(homeText("The profile will be removed from this device.", "این کانفیگ از دستگاه حذف می‌شه."), color = UacColors.TextSecondary) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -467,12 +501,12 @@ internal fun ConfigsScreen(
                         latencyCache.remove(target.id)
                         delayStates = delayStates - target.id
                         deleteTarget = null
-                        notify("Profile deleted")
+                        notify(if (isPersian) "کانفیگ حذف شد" else "Profile deleted")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD94B5B)),
-                ) { Text("Delete") }
+                ) { Text(homeText("Delete", "حذف")) }
             },
-            dismissButton = { OutlinedButton(onClick = { deleteTarget = null }) { Text("Cancel") } },
+            dismissButton = { OutlinedButton(onClick = { deleteTarget = null }) { Text(homeText("Cancel", "لغو")) } },
         )
     }
 
@@ -480,8 +514,8 @@ internal fun ConfigsScreen(
         AlertDialog(
             onDismissRequest = { bulkDeletePending = false },
             containerColor = Color(0xFF101C29),
-            title = { Text("Delete ${markedIds.size} profiles?", color = Color.White) },
-            text = { Text("Selected profiles will be removed from this device.", color = UacColors.TextSecondary) },
+            title = { Text(homeText("Delete ${markedIds.size} profiles?", "${markedIds.size} کانفیگ حذف بشه؟"), color = Color.White) },
+            text = { Text(homeText("Selected profiles will be removed from this device.", "کانفیگ‌های انتخاب‌شده از دستگاه حذف می‌شن."), color = UacColors.TextSecondary) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -491,13 +525,14 @@ internal fun ConfigsScreen(
                         markedIds = emptySet()
                         selectionMode = false
                         bulkDeletePending = false
-                        notify("Profiles deleted")
+                        notify(if (isPersian) "کانفیگ‌ها حذف شدن" else "Profiles deleted")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD94B5B)),
-                ) { Text("Delete") }
+                ) { Text(homeText("Delete", "حذف")) }
             },
-            dismissButton = { OutlinedButton(onClick = { bulkDeletePending = false }) { Text("Cancel") } },
+            dismissButton = { OutlinedButton(onClick = { bulkDeletePending = false }) { Text(homeText("Cancel", "لغو")) } },
         )
+    }
     }
 }
 
@@ -518,6 +553,7 @@ private fun ConfigsTopBar(
     onDeleteSelected: () -> Unit,
 ) {
     var sortMenuExpanded by remember { mutableStateOf(false) }
+    val isPersian = LocalHomePersian.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -532,26 +568,42 @@ private fun ConfigsTopBar(
         ) {
             Icon(
                 if (selectionMode) Icons.Outlined.Close else Icons.Outlined.Menu,
-                if (selectionMode) "Cancel selection" else "Open navigation",
+                if (selectionMode) homeText("Cancel selection", "لغو انتخاب") else homeText("Open navigation", "بازکردن منو"),
                 tint = Color.White,
             )
         }
         Column(Modifier.weight(1f)) {
             Text(
-                if (selectionMode) "$selectedCount selected" else "Configs",
+                if (selectionMode) homeText("$selectedCount selected", "$selectedCount انتخاب‌شده") else homeText("Configs", "کانفیگ‌ها"),
                 color = Color.White,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
+                textAlign = if (isPersian) TextAlign.Right else TextAlign.Start,
+                style = LocalTextStyle.current.copy(
+                    textDirection = if (isPersian) TextDirection.Rtl else TextDirection.Content,
+                ),
+                modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                if (selectionMode) "Tap profiles to mark them" else if (count == 0) "UAC SNI built-in" else "$count custom profile${if (count == 1) "" else "s"}",
+                if (selectionMode) {
+                    homeText("Tap profiles to mark them", "برای علامت‌زدن، کانفیگ‌ها رو انتخاب کن")
+                } else if (count == 0) {
+                    homeText("UAC SNI built-in", "کانفیگ پیش‌فرض ${configLtr("UAC SNI")}")
+                } else {
+                    homeText("$count custom profile${if (count == 1) "" else "s"}", "$count کانفیگ شخصی")
+                },
                 color = UacColors.TextSecondary,
                 fontSize = 11.sp,
+                textAlign = if (isPersian) TextAlign.Right else TextAlign.Start,
+                style = LocalTextStyle.current.copy(
+                    textDirection = if (isPersian) TextDirection.Rtl else TextDirection.Content,
+                ),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
         if (selectionMode) {
             IconButton(onClick = onSelectAll, enabled = count > 0) {
-                Icon(Icons.Outlined.SelectAll, "Select all", tint = UacColors.DisconnectedBlue)
+                Icon(Icons.Outlined.SelectAll, homeText("Select all", "انتخاب همه"), tint = UacColors.DisconnectedBlue)
             }
             IconButton(
                 onClick = onExportSelected,
@@ -572,7 +624,7 @@ private fun ConfigsTopBar(
             ) {
                 Icon(
                     Icons.Outlined.ContentCopy,
-                    "Export selected to clipboard",
+                    homeText("Export selected to clipboard", "کپی موارد انتخابی در کلیپ‌بورد"),
                     tint = if (selectedCount > 0) UacColors.ConnectedGreen
                     else UacColors.TextSecondary.copy(alpha = 0.35f),
                     modifier = Modifier.size(20.dp),
@@ -581,7 +633,7 @@ private fun ConfigsTopBar(
             IconButton(onClick = onDeleteSelected, enabled = selectedCount > 0) {
                 Icon(
                     Icons.Outlined.DeleteOutline,
-                    "Delete selected",
+                    homeText("Delete selected", "حذف موارد انتخابی"),
                     tint = if (selectedCount > 0) Color(0xFFFF7483) else UacColors.TextSecondary.copy(alpha = 0.35f),
                 )
             }
@@ -596,10 +648,10 @@ private fun ConfigsTopBar(
                             ConfigLatencySort.COUNTRY_ASC -> Icons.Outlined.Public
                         },
                         when (sortOrder) {
-                            ConfigLatencySort.DEFAULT -> "Default profile order"
-                            ConfigLatencySort.LATENCY_ASC -> "Latency low to high"
-                            ConfigLatencySort.LATENCY_DESC -> "Latency high to low"
-                            ConfigLatencySort.COUNTRY_ASC -> "Group by country"
+                            ConfigLatencySort.DEFAULT -> homeText("Default profile order", "ترتیب پیش‌فرض کانفیگ‌ها")
+                            ConfigLatencySort.LATENCY_ASC -> homeText("Latency low to high", "تأخیر از کم به زیاد")
+                            ConfigLatencySort.LATENCY_DESC -> homeText("Latency high to low", "تأخیر از زیاد به کم")
+                            ConfigLatencySort.COUNTRY_ASC -> homeText("Group by country", "دسته‌بندی بر اساس کشور")
                         },
                         tint = if (sortOrder == ConfigLatencySort.DEFAULT) UacColors.TextSecondary else UacColors.DisconnectedBlue,
                     )
@@ -614,10 +666,10 @@ private fun ConfigsTopBar(
                             text = {
                                 Text(
                                     when (option) {
-                                ConfigLatencySort.DEFAULT -> "Default order"
-                                ConfigLatencySort.LATENCY_ASC -> "Latency: low to high"
-                                ConfigLatencySort.LATENCY_DESC -> "Latency: high to low"
-                                ConfigLatencySort.COUNTRY_ASC -> "Country (A-Z)"
+                                        ConfigLatencySort.DEFAULT -> homeText("Default order", "ترتیب پیش‌فرض")
+                                        ConfigLatencySort.LATENCY_ASC -> homeText("Latency: low to high", "تأخیر: کم به زیاد")
+                                        ConfigLatencySort.LATENCY_DESC -> homeText("Latency: high to low", "تأخیر: زیاد به کم")
+                                        ConfigLatencySort.COUNTRY_ASC -> homeText("Country (A-Z)", "کشور (A-Z)")
                                     },
                                     color = Color.White,
                                 )
@@ -641,12 +693,12 @@ private fun ConfigsTopBar(
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Icon(Icons.Outlined.Speed, "Test real delay", tint = UacColors.ConnectedGreen)
+                    Icon(Icons.Outlined.Speed, homeText("Test real delay", "تست تأخیر واقعی"), tint = UacColors.ConnectedGreen)
                 }
             }
             if (count > 0) {
                 IconButton(onClick = onEnterSelection) {
-                    Icon(Icons.Outlined.DeleteSweep, "Select profiles to delete", tint = UacColors.TextSecondary)
+                    Icon(Icons.Outlined.DeleteSweep, homeText("Select profiles to delete", "انتخاب کانفیگ‌ها برای حذف"), tint = UacColors.TextSecondary)
                 }
             }
         }
@@ -726,14 +778,14 @@ private fun ProfileRow(
             if (selected || active || delayState != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (active) {
-                Text("UAC SNI / connected", color = accent, fontSize = 9.sp, fontWeight = FontWeight.Medium)
+                        Text(homeText("UAC SNI / connected", "${configLtr("UAC SNI")} / متصل"), color = accent, fontSize = 9.sp, fontWeight = FontWeight.Medium)
                     } else if (selected) {
-                Text("UAC SNI / selected", color = accent, fontSize = 9.sp, fontWeight = FontWeight.Medium)
+                        Text(homeText("UAC SNI / selected", "${configLtr("UAC SNI")} / انتخاب‌شده"), color = accent, fontSize = 9.sp, fontWeight = FontWeight.Medium)
                     }
                     Spacer(Modifier.weight(1f))
                     when (delayState) {
-                DelayUiState.Testing -> Text("testing…", color = UacColors.TextSecondary, fontSize = 9.sp)
-                DelayUiState.Failed -> Text("Timeout", color = Color(0xFFFF7483), fontSize = 9.sp)
+                        DelayUiState.Testing -> Text(homeText("testing…", "در حال تست…"), color = UacColors.TextSecondary, fontSize = 9.sp)
+                        DelayUiState.Failed -> Text(homeText("Timeout", "مهلت تمام شد"), color = Color(0xFFFF7483), fontSize = 9.sp)
                         is DelayUiState.Ready -> Text("${delayState.millis} ms", color = UacColors.ConnectedGreen, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
                         null -> Unit
                     }
@@ -755,13 +807,13 @@ private fun ProfileRow(
                 modifier = Modifier.size(30.dp).background(accent.copy(alpha = 0.13f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                    Icon(Icons.Outlined.Check, "Selected", tint = accent, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Outlined.Check, homeText("Selected", "انتخاب‌شده"), tint = accent, modifier = Modifier.size(18.dp))
             }
         }
         if (!selectionMode && onEdit != null && onDelete != null) {
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Outlined.MoreVert, "More options for ${profile.name}", tint = UacColors.TextSecondary)
+                    Icon(Icons.Outlined.MoreVert, homeText("More options for ${profile.name}", "گزینه‌های بیشتر برای ${profile.name}"), tint = UacColors.TextSecondary)
                 }
                 DropdownMenu(
                     expanded = menuExpanded,
@@ -769,17 +821,17 @@ private fun ProfileRow(
                     modifier = Modifier.background(Color(0xFF142231)),
                 ) {
                     DropdownMenuItem(
-                    text = { Text("Real delay", color = Color.White) },
+                        text = { Text(homeText("Real delay", "تأخیر واقعی"), color = Color.White) },
                         leadingIcon = { Icon(Icons.Outlined.Speed, null, tint = UacColors.ConnectedGreen) },
                         onClick = { menuExpanded = false; onTestDelay() },
                     )
                     DropdownMenuItem(
-                    text = { Text("Edit", color = Color.White) },
+                        text = { Text(homeText("Edit", "ویرایش"), color = Color.White) },
                         leadingIcon = { Icon(Icons.Outlined.Edit, null, tint = UacColors.DisconnectedBlue) },
                         onClick = { menuExpanded = false; onEdit() },
                     )
                     DropdownMenuItem(
-                    text = { Text("Delete", color = Color(0xFFFF7A88)) },
+                        text = { Text(homeText("Delete", "حذف"), color = Color(0xFFFF7A88)) },
                         leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = Color(0xFFFF7A88)) },
                         onClick = { menuExpanded = false; onDelete() },
                     )
@@ -828,9 +880,16 @@ private fun EmptyProfileHint() {
         modifier = Modifier.fillMaxWidth().padding(top = 34.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("No custom profiles", color = Color(0xFFB8C5D5), fontSize = 13.sp)
+        Text(homeText("No custom profiles", "هنوز کانفیگ شخصی اضافه نشده"), color = Color(0xFFB8C5D5), fontSize = 13.sp)
         Spacer(Modifier.height(4.dp))
-        Text("Tap + to import VLESS, Trojan or VMess", color = UacColors.TextSecondary, fontSize = 10.5.sp)
+        Text(
+            homeText(
+                "Tap + to import VLESS, Trojan or VMess",
+                "برای افزودن ${configLtr("VLESS")}، ${configLtr("Trojan")} یا ${configLtr("VMess")} روی + بزن",
+            ),
+            color = UacColors.TextSecondary,
+            fontSize = 10.5.sp,
+        )
     }
 }
 
@@ -917,7 +976,7 @@ private fun ProfileEditorSheet(
             verticalArrangement = Arrangement.spacedBy(11.dp),
         ) {
             Text(
-                if (editing) "Edit configuration" else "Add configuration",
+                if (editing) homeText("Edit configuration", "ویرایش کانفیگ") else homeText("Add configuration", "افزودن کانفیگ"),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -926,12 +985,12 @@ private fun ProfileEditorSheet(
                     OutlinedButton(onClick = onPaste, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Outlined.ContentPaste, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.size(6.dp))
-                    Text("Paste")
+                        Text(homeText("Paste", "چسباندن"))
                     }
                     OutlinedButton(onClick = onImport, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Outlined.FileOpen, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.size(6.dp))
-                    Text("Import file")
+                        Text(homeText("Import file", "واردکردن فایل"))
                     }
                 }
             }
@@ -939,7 +998,7 @@ private fun ProfileEditorSheet(
                 value = name,
                 onValueChange = onNameChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Name (optional)") },
+                label = { Text(homeText("Name (optional)", "نام (اختیاری)")) },
                 singleLine = true,
                 colors = toolTextFieldColors(accent),
             )
@@ -947,15 +1006,27 @@ private fun ProfileEditorSheet(
                 value = uri,
                 onValueChange = onUriChange,
                 modifier = Modifier.fillMaxWidth().height(122.dp),
-                label = { Text("VLESS, Trojan or VMess URI") },
+                label = {
+                    Text(
+                        homeText(
+                            "VLESS, Trojan or VMess URI",
+                            "لینک ${configLtr("VLESS")}، ${configLtr("Trojan")} یا ${configLtr("VMess")}",
+                        ),
+                    )
+                },
                 placeholder = { Text("vless://…  trojan://…  vmess://…") },
                 colors = toolTextFieldColors(accent),
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.sp),
                 isError = error != null,
-                supportingText = error?.let { message -> { Text(message, color = Color(0xFFFF7A88)) } },
+                supportingText = error?.let { message ->
+                    { Text(if (LocalHomePersian.current) localizedConfigError(message) else message, color = Color(0xFFFF7A88)) }
+                },
             )
             Text(
-                "Profile identity is used with UAC SNI adaptive edge, fragmentation and tunnel settings.",
+                homeText(
+                    "Profile identity is used with UAC SNI adaptive edge, fragmentation and tunnel settings.",
+                    "مشخصات کانفیگ همراه تنظیمات تطبیقی ${configLtr("Edge")}، ${configLtr("Fragment")} و تونل ${configLtr("UAC SNI")} استفاده می‌شه.",
+                ),
                 color = UacColors.TextSecondary,
                 fontSize = 10.sp,
             )
@@ -967,10 +1038,21 @@ private fun ProfileEditorSheet(
             ) {
                 Icon(Icons.Outlined.Save, null, modifier = Modifier.size(19.dp))
                 Spacer(Modifier.size(7.dp))
-                Text(if (editing) "Save changes" else "Add and select", fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (editing) homeText("Save changes", "ذخیره تغییرات") else homeText("Add and select", "افزودن و انتخاب"),
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }
+}
+
+private fun localizedConfigError(message: String): String = when {
+    message.contains("clipboard", ignoreCase = true) -> "کلیپ‌بورد کانفیگ معتبری نداره"
+    message.contains("invalid", ignoreCase = true) -> "کانفیگ معتبر نیست"
+    message.contains("unsupported", ignoreCase = true) -> "این نوع کانفیگ پشتیبانی نمی‌شه"
+    message.contains("empty", ignoreCase = true) -> "لینک کانفیگ خالیه"
+    else -> "کانفیگ وارد نشد: $message"
 }
 
 @Composable

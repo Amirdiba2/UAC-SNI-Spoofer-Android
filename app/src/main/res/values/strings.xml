@@ -10,4 +10,10 @@
     <string name="vpn_failed_notification">UAC SNI connection failed</string>
     <string name="notification_disconnect">Disconnect</string>
     <string name="notification_close">Close</string>
+    <string name="quick_settings_tile_label">UAC SNI Spoofer</string>
+    <string name="quick_settings_tile_connected">Connected</string>
+    <string name="quick_settings_tile_connecting">Connecting</string>
+    <string name="quick_settings_tile_disconnecting">Disconnecting</string>
+    <string name="quick_settings_tile_disconnected">Disconnected</string>
+    <string name="quick_settings_tile_error">Connection failed</string>
 </resources>

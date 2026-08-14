@@ -14,22 +14,22 @@ Current version: **2.0.0**
 
 ## Features
 
-- Native Android `VpnService` with Xray Native TUN
-- Adaptive connection planning that fingerprints the current network, tests route candidates, and remembers the winner
-- A tuned built-in configuration with Edge, DNS, primary, and fallback routes
-- VLESS, VMess, and Trojan configuration support
-- Import from text, clipboard, local files, and subscription URLs
-- SNI Config Maker with Quick Scan and Deep Adaptive Test modes
-- Non-destructive subscription merging with duplicate detection
-- Live, collapsible Candidate details for HTTP, DNS, Edge, and Fragment checks
-- Automatic exit-country detection and flags for healthy configurations
-- Multi-select configuration export to the clipboard
-- Live latency, exit country, traffic statistics, and logs
-- Per-app tunnel selection through App Bypass
-- Advanced Fragment, Finalmask, TUN, routing, and keepalive controls
-- A polished connection progress ring with a glow effect
-- Quick notification controls for Disconnect and Close, plus safe double-back and Recent Apps behavior
-- Update checks through this repository's Releases section, followed by user-approved installation
+- Full-device Android tunnel powered by `VpnService`, Xray, and a native TUN path
+- VLESS, VMess, and Trojan profiles with their original transport, security, SNI, Host, Path, ALPN, and fingerprint fields preserved
+- **Adaptive Connection:** creates a network fingerprint from transport, carrier, ASN, and provider information, prioritizes compatible routes, learns successful results, and reuses them on later connections
+- Carrier-aware primary and fallback Edge pools, plus a Direct Compatibility route that tests the original profile without address substitution, ALPN injection, or FinalMask overrides
+- Automatic recovery after a network change or quality drop using the saved winner, a backup route, and cooldowns for repeatedly failing paths
+- **Route Speed Test:** exhaustively evaluates the `Edge × DNS × Fragment × MTU` matrix, producing hundreds of independent route candidates for each profile and network
+- A multi-stage route competition covering qualification, verification, stability, stress, and an A-B-B-A final, with cold Xray starts, multi-target HTTP, DNS, payload, throughput, latency, jitter, pass-rate, and confidence measurements
+- Live ranking, persistent pause/resume, manual stage advancement, and a previous-final list scoped to the current profile and network fingerprint
+- Per-profile Champion and Backup routes that are saved for the current network and used directly by later connections
+- Independent DoH resolvers and bootstrap addresses for Cloudflare, Google, Quad9, AdGuard, and OpenDNS
+- **Config Maker:** Quick Scan and Deep Adaptive Test modes with live Candidate details and early stopping on the first fully healthy result
+- Import from text, clipboard, local files, and subscription URLs, with non-destructive subscription merging and duplicate removal
+- Three per-app routing modes: tunnel every app, bypass selected apps, or tunnel only selected apps
+- Tunnel and local SOCKS proxy modes, with Fragment, FinalMask, MTU, Mux, Keepalive, QUIC, and routing controls
+- Live latency, traffic, exit IP/country, connection-health, and technical diagnostics
+- Direct VPN connect/disconnect from Android Quick Settings and notification controls
 
 ## Requirements
 

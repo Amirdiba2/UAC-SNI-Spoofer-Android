@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,6 +54,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -137,6 +139,8 @@ internal fun ConnectButton(
     diameter: Dp,
     onClick: () -> Unit,
 ) {
+    val isPersian = LocalHomePersian.current
+    val localizedFont = homeLocalizedFont()
     val interactionDisabled = state == ConnectionState.DISCONNECTING
     val transition = rememberInfiniteTransition(label = "connect-glow")
     val animatedGlow by transition.animateFloat(
@@ -167,12 +171,13 @@ internal fun ConnectButton(
         label = "connect-loading-sweep",
     )
     val glowIntensity = if (state == ConnectionState.CONNECTING) animatedGlow else 1f
+    val emphasizePersianLabel = isPersian
     val buttonLabel = when (state) {
-        ConnectionState.DISCONNECTED -> "CONNECT"
-        ConnectionState.CONNECTING -> "CANCEL"
-        ConnectionState.CONNECTED -> "DISCONNECT"
-        ConnectionState.DISCONNECTING -> "DISCONNECTING..."
-        ConnectionState.ERROR -> "RETRY"
+        ConnectionState.DISCONNECTED -> homeText("CONNECT", "اتصال")
+        ConnectionState.CONNECTING -> homeText("CANCEL", "لغو")
+        ConnectionState.CONNECTED -> homeText("DISCONNECT", "قطع اتصال")
+        ConnectionState.DISCONNECTING -> homeText("DISCONNECTING...", "در حال قطع...")
+        ConnectionState.ERROR -> homeText("RETRY", "تلاش دوباره")
     }
 
     Box(
@@ -344,10 +349,23 @@ internal fun ConnectButton(
                 Text(
                     text = buttonLabel,
                     color = accent,
-                    fontSize = if (buttonLabel.length > 11) 10.5.sp else 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.55.sp,
+                    fontSize = when {
+                        emphasizePersianLabel -> 18.sp
+                        buttonLabel.length > 11 -> 10.5.sp
+                        else -> 13.sp
+                    },
+                    fontWeight = if (emphasizePersianLabel) FontWeight.Bold else FontWeight.SemiBold,
+                    fontFamily = localizedFont,
+                    letterSpacing = if (isPersian) 0.sp else 0.55.sp,
                     textAlign = TextAlign.Center,
+                    style = TextStyle(
+                        textDirection = if (isPersian) TextDirection.Rtl else TextDirection.Content,
+                        shadow = if (emphasizePersianLabel) {
+                            Shadow(color = accent.copy(alpha = 0.42f), offset = Offset.Zero, blurRadius = 9f)
+                        } else {
+                            null
+                        },
+                    ),
                 )
             }
         }
@@ -356,19 +374,21 @@ internal fun ConnectButton(
 
 @Composable
 internal fun ConnectionStatus(state: ConnectionState, accent: Color) {
+    val isPersian = LocalHomePersian.current
+    val localizedFont = homeLocalizedFont()
     val status = when (state) {
-        ConnectionState.DISCONNECTED -> "Disconnected"
-        ConnectionState.CONNECTING -> "Connecting..."
-        ConnectionState.CONNECTED -> "Connected"
-        ConnectionState.DISCONNECTING -> "Disconnecting..."
-        ConnectionState.ERROR -> "Connection failed"
+        ConnectionState.DISCONNECTED -> homeText("Disconnected", "وصل نیست")
+        ConnectionState.CONNECTING -> homeText("Connecting...", "در حال اتصال…")
+        ConnectionState.CONNECTED -> homeText("Connected", "وصل شد")
+        ConnectionState.DISCONNECTING -> homeText("Disconnecting...", "در حال قطع...")
+        ConnectionState.ERROR -> homeText("Connection failed", "اتصال برقرار نشد")
     }
     val hint = when (state) {
-        ConnectionState.DISCONNECTED -> "Tap the button to connect"
-        ConnectionState.CONNECTING -> "Establishing a secure tunnel"
-        ConnectionState.CONNECTED -> "Your connection is secure"
-        ConnectionState.DISCONNECTING -> "Closing the secure tunnel"
-        ConnectionState.ERROR -> "Tap retry to try again"
+        ConnectionState.DISCONNECTED -> homeText("Tap the button to connect", "برای وصل شدن، دکمه رو بزن")
+        ConnectionState.CONNECTING -> homeText("Establishing a secure tunnel", "در حال ساخت اتصال امن")
+        ConnectionState.CONNECTED -> homeText("Your connection is secure", "اتصال شما امنه")
+        ConnectionState.DISCONNECTING -> homeText("Closing the secure tunnel", "در حال بستن اتصال امن")
+        ConnectionState.ERROR -> homeText("Tap retry to try again", "دوباره امتحان کن")
     }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -377,7 +397,14 @@ internal fun ConnectionStatus(state: ConnectionState, accent: Color) {
             color = accent,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
+            fontFamily = localizedFont,
             textAlign = TextAlign.Center,
+            style = TextStyle(
+                textDirection = if (isPersian) TextDirection.Rtl else TextDirection.Content,
+            ),
+            modifier = if (isPersian) Modifier.widthIn(min = 180.dp) else Modifier,
+            maxLines = 1,
+            softWrap = false,
         )
         Spacer(Modifier.height(3.dp))
         Text(
@@ -385,6 +412,7 @@ internal fun ConnectionStatus(state: ConnectionState, accent: Color) {
             color = UacColors.TextSecondary,
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Normal,
+            fontFamily = localizedFont,
             textAlign = TextAlign.Center,
         )
     }
@@ -407,11 +435,32 @@ internal fun FeatureCard(accent: Color, compact: Boolean, modifier: Modifier = M
             .padding(horizontal = 5.dp, vertical = if (compact) 8.dp else 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        FeatureItem(Icons.Outlined.VerifiedUser, "Secure", "Encrypted", accent, compact, Modifier.weight(1f))
+        FeatureItem(
+            Icons.Outlined.VerifiedUser,
+            homeText("Secure", "امن"),
+            homeText("Encrypted", "رمزگذاری‌شده"),
+            accent,
+            compact,
+            Modifier.weight(1f),
+        )
         FeatureDivider()
-        FeatureItem(Icons.Rounded.Bolt, "Fast", "Optimized", accent, compact, Modifier.weight(1f))
+        FeatureItem(
+            Icons.Rounded.Bolt,
+            homeText("Fast", "سریع"),
+            homeText("Optimized", "بهینه"),
+            accent,
+            compact,
+            Modifier.weight(1f),
+        )
         FeatureDivider()
-        FeatureItem(Icons.Rounded.Wifi, "Stable", "Reliable", accent, compact, Modifier.weight(1f))
+        FeatureItem(
+            Icons.Rounded.Wifi,
+            homeText("Stable", "پایدار"),
+            homeText("Reliable", "قابل‌اعتماد"),
+            accent,
+            compact,
+            Modifier.weight(1f),
+        )
     }
 }
 
@@ -424,6 +473,7 @@ private fun FeatureItem(
     compact: Boolean,
     modifier: Modifier,
 ) {
+    val localizedFont = homeLocalizedFont()
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -441,6 +491,7 @@ private fun FeatureItem(
             color = UacColors.TextPrimary,
             fontSize = if (compact) 11.5.sp else 12.sp,
             fontWeight = FontWeight.Medium,
+            fontFamily = localizedFont,
         )
         Spacer(Modifier.height(1.dp))
         Text(
@@ -448,6 +499,7 @@ private fun FeatureItem(
             color = UacColors.TextSecondary,
             fontSize = if (compact) 9.5.sp else 10.sp,
             fontWeight = FontWeight.Normal,
+            fontFamily = localizedFont,
         )
     }
 }

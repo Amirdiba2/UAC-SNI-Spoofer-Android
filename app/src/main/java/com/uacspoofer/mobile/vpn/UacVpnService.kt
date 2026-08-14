@@ -291,9 +291,34 @@ class UacVpnService : VpnService() {
         var bestReport: AdaptiveProbeReport? = null
         val fingerprint = fingerprintResolver.captureAdaptive()
         val signature = adaptivePlanner.signature(settings, profile)
+        val savedChampionId = adaptiveProfileStore.savedRoute(fingerprint, profile, signature)?.id
+        val savedBackupId = adaptiveProfileStore.savedBackupRoute(fingerprint, profile, signature)?.id
+        val learnedWinnerId = adaptiveProfileStore.winner(fingerprint, profile, signature)
         val candidates = adaptivePlanner.candidates(settings, fingerprint, profile)
+        fun routeSource(candidate: AdaptiveCandidate): String = when (candidate.id) {
+            savedChampionId -> "SAVED_CHAMPION"
+            savedBackupId -> "SAVED_BACKUP"
+            learnedWinnerId -> "LEARNED_WINNER"
+            else -> "ADAPTIVE_FALLBACK"
+        }
         AppLogRepository.info(LogSource.SERVICE, "Selected ${profile.protocol.name} profile: ${profile.name}")
         AppLogRepository.info(LogSource.ADAPTIVE, "Session=$token network fingerprint ${fingerprint.summary()}")
+        AppLogRepository.debug(
+            LogSource.ADAPTIVE,
+            "ROUTE COLOR LEGEND green=SAVED/ACTIVE amber=BACKUP/SWITCH blue=ADAPTIVE red=FAILED",
+        )
+        if (savedChampionId != null) {
+            AppLogRepository.success(
+                LogSource.ADAPTIVE,
+                "ROUTE SAVED_CHAMPION ready id=$savedChampionId fingerprint=${fingerprint.learningKey()}",
+            )
+        }
+        if (savedBackupId != null) {
+            AppLogRepository.warning(
+                LogSource.ADAPTIVE,
+                "ROUTE SAVED_BACKUP ready id=$savedBackupId fingerprint=${fingerprint.learningKey()}",
+            )
+        }
         AppLogRepository.info(
             LogSource.ADAPTIVE,
             "Planner signature=$signature candidates=${candidates.joinToString(",") { it.id }}",
@@ -305,6 +330,18 @@ class UacVpnService : VpnService() {
                 cleanupRoute()
                 val edge = candidate.edge
                 val candidateSettings = candidate.settings
+                val source = routeSource(candidate)
+                val routeAttempt =
+                    "ROUTE TRY source=$source position=${index + 1}/${candidates.size} " +
+                        "id=${candidate.id} label=${candidate.label} edge=${edge.address}:${edge.port} " +
+                        "resolver=${AdaptiveDnsResolvers.idFor(candidate.settings.dnsResolverUrl)}"
+                when (source) {
+                    "SAVED_CHAMPION", "LEARNED_WINNER" ->
+                        AppLogRepository.success(LogSource.ADAPTIVE, routeAttempt)
+                    "SAVED_BACKUP" ->
+                        AppLogRepository.warning(LogSource.ADAPTIVE, routeAttempt)
+                    else -> AppLogRepository.info(LogSource.ADAPTIVE, routeAttempt)
+                }
                 Log.i(TAG, "starting adaptive candidate ${candidate.id} ${edge.role}=${edge.address}:${edge.port}")
                 AppLogRepository.info(
                     LogSource.ADAPTIVE,
@@ -366,6 +403,11 @@ class UacVpnService : VpnService() {
                     LogSource.SERVICE,
                     "Connected with ${candidate.label}: score=${report.score}, ${report.http.detail}",
                 )
+                AppLogRepository.success(
+                    LogSource.ADAPTIVE,
+                    "ROUTE ACTIVE source=${routeSource(candidate)} id=${candidate.id} " +
+                        "label=${candidate.label} score=${report.score} edge=${edge.address}:${edge.port}",
+                )
                 runCatching { updateNotification(connected = true) }
                     .onFailure { Log.w(TAG, "connected notification update failed", it) }
                 startHealthMonitor(token)
@@ -386,6 +428,17 @@ class UacVpnService : VpnService() {
                 cleanupRoute()
                 resourcesActive = false
                 if (index + 1 < candidates.size) {
+                    val next = candidates[index + 1]
+                    val reason = error.message
+                        ?.substringBefore('\n')
+                        ?.take(220)
+                        ?.ifBlank { error.javaClass.simpleName }
+                        ?: error.javaClass.simpleName
+                    AppLogRepository.warning(
+                        LogSource.ADAPTIVE,
+                        "ROUTE SWITCH from=${routeSource(candidate)}:${candidate.id} " +
+                            "to=${routeSource(next)}:${next.id} reason=[$reason]",
+                    )
                     val settleDelayMs = candidateRouteSettleDelayMs(fingerprint.transport)
                     delay(settleDelayMs)
                     AppLogRepository.debug(

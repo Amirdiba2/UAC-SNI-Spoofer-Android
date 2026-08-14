@@ -67,6 +67,8 @@ internal fun ToolPageHeader(
     accent: Color,
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier,
+    navigationIcon: ImageVector = Icons.Outlined.Menu,
+    navigationDescription: String = "Open navigation",
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -82,8 +84,8 @@ internal fun ToolPageHeader(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Outlined.Menu,
-                contentDescription = "Open navigation",
+                imageVector = navigationIcon,
+                contentDescription = navigationDescription,
                 tint = UacColors.TextPrimary,
                 modifier = Modifier.size(24.dp),
             )

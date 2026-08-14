@@ -37,10 +37,12 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -48,6 +50,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,64 +74,66 @@ internal fun SupportScreen(
     onUpdate: (AppRelease) -> Unit,
 ) {
     val context = LocalContext.current
-    ToolPageBackground(accent = SupportPurple) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(WindowInsets.safeDrawing.asPaddingValues())
-                .padding(horizontal = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                Spacer(Modifier.height(10.dp))
-                ToolPageHeader(
-                    title = "Support",
-                    subtitle = "Community, updates and project links",
-                    icon = Icons.Outlined.SupportAgent,
-                    accent = SupportPurple,
-                    onMenuClick = onMenuClick,
-                )
-            }
-            item {
-                SupportIntroCard()
-            }
+    val baseTextStyle = LocalTextStyle.current
+    val localizedTextStyle = homeLocalizedFont()?.let { baseTextStyle.copy(fontFamily = it) } ?: baseTextStyle
+    CompositionLocalProvider(LocalTextStyle provides localizedTextStyle) {
+        ToolPageBackground(accent = SupportPurple) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(WindowInsets.safeDrawing.asPaddingValues())
+                    .padding(horizontal = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item {
+                    Spacer(Modifier.height(10.dp))
+                    ToolPageHeader(
+                        title = homeText("Support", "پشتیبانی"),
+                        subtitle = homeText("Community, updates and project links", "ارتباط با ما، به‌روزرسانی‌ها و لینک‌های پروژه"),
+                        icon = Icons.Outlined.SupportAgent,
+                        accent = SupportPurple,
+                        onMenuClick = onMenuClick,
+                    )
+                }
+                item { SupportIntroCard() }
                 item { SectionLabel("Telegram") }
-            item {
-                SupportLinkCard(
-                    title = "Telegram Channel",
-                    address = "t.me/UacSniSpoofer",
-                    icon = Icons.Outlined.Send,
-                    accent = TelegramBlue,
-                    onClick = { openExternalLink(context, TELEGRAM_CHANNEL_URL) },
-                )
+                item {
+                    SupportLinkCard(
+                        title = homeText("Telegram Channel", "کانال ${supportLtr("Telegram")}"),
+                        address = "t.me/UacSniSpoofer",
+                        icon = Icons.Outlined.Send,
+                        accent = TelegramBlue,
+                        onClick = { openExternalLink(context, TELEGRAM_CHANNEL_URL) },
+                    )
+                }
+                item {
+                    SupportLinkCard(
+                        title = homeText("Telegram Group", "گروه ${supportLtr("Telegram")}"),
+                        address = "t.me/UacSniSpooferGroup",
+                        icon = Icons.Outlined.Forum,
+                        accent = Color(0xFF6EC8FF),
+                        onClick = { openExternalLink(context, TELEGRAM_GROUP_URL) },
+                    )
+                }
+                item { SectionLabel(homeText("Application", "برنامه")) }
+                item {
+                    VersionAndUpdateCard(
+                        state = updateState,
+                        onCheckForUpdate = onCheckForUpdate,
+                        onUpdate = onUpdate,
+                    )
+                }
+                item {
+                    SupportLinkCard(
+                        title = homeText("GitHub Project", "پروژه ${supportLtr("GitHub")}"),
+                        address = "Floxu1/UAC-SNI-Spoofer-Android",
+                        icon = Icons.Outlined.NewReleases,
+                        accent = SupportPurple,
+                        onClick = { openExternalLink(context, AppUpdateManager.REPOSITORY_URL) },
+                    )
+                }
+                item { Spacer(Modifier.height(8.dp).navigationBarsPadding()) }
             }
-            item {
-                SupportLinkCard(
-                    title = "Telegram Group",
-                    address = "t.me/UacSniSpooferGroup",
-                    icon = Icons.Outlined.Forum,
-                    accent = Color(0xFF6EC8FF),
-                    onClick = { openExternalLink(context, TELEGRAM_GROUP_URL) },
-                )
-            }
-                item { SectionLabel("Application") }
-            item {
-                VersionAndUpdateCard(
-                    state = updateState,
-                    onCheckForUpdate = onCheckForUpdate,
-                    onUpdate = onUpdate,
-                )
-            }
-            item {
-                SupportLinkCard(
-                    title = "GitHub Project",
-                    address = "Floxu1/UAC-SNI-Spoofer-Android",
-                    icon = Icons.Outlined.NewReleases,
-                    accent = SupportPurple,
-                    onClick = { openExternalLink(context, AppUpdateManager.REPOSITORY_URL) },
-                )
-            }
-            item { Spacer(Modifier.height(8.dp).navigationBarsPadding()) }
         }
     }
 }
@@ -157,10 +163,13 @@ private fun SupportIntroCard() {
         }
         Spacer(Modifier.size(13.dp))
         Column(Modifier.weight(1f)) {
-            Text("We're here to help", color = UacColors.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(homeText("We're here to help", "اینجاییم تا کمکت کنیم"), color = UacColors.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(3.dp))
             Text(
-                "Follow releases, ask questions and join the UAC community.",
+                homeText(
+                    "Follow releases, ask questions and join the UAC community.",
+                    "خبر نسخه‌های جدید رو دنبال کن، سؤال‌هات رو بپرس و با جامعه ${supportLtr("UAC")} در ارتباط باش.",
+                ),
                 color = UacColors.TextSecondary,
                 fontSize = 11.5.sp,
                 lineHeight = 16.sp,
@@ -198,7 +207,12 @@ private fun SupportLinkCard(
             Text(title, color = UacColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             Text(address, color = UacColors.TextSecondary, fontSize = 10.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-            Icon(Icons.Outlined.OpenInNew, "Open $title", tint = accent.copy(alpha = 0.82f), modifier = Modifier.size(18.dp))
+            Icon(
+                Icons.Outlined.OpenInNew,
+                homeText("Open $title", "باز کردن $title"),
+                tint = accent.copy(alpha = 0.82f),
+                modifier = Modifier.size(18.dp),
+            )
     }
 }
 
@@ -214,13 +228,24 @@ private fun VersionAndUpdateCard(
         else -> null
     }
     val status = when (state) {
-        UpdateUiState.Idle -> "Automatic GitHub release checks are enabled"
-        UpdateUiState.Checking -> "Checking GitHub Releases…"
-        UpdateUiState.UpToDate -> "You are using the latest release"
-        is UpdateUiState.Available -> "Version ${state.release.version} is ready"
-        is UpdateUiState.Downloading -> state.progress?.let { "Downloading update… $it%" } ?: "Downloading update…"
-        is UpdateUiState.Ready -> state.message
-        is UpdateUiState.Error -> state.message
+        UpdateUiState.Idle -> homeText(
+            "Automatic GitHub release checks are enabled",
+            "بررسی خودکار نسخه‌های جدید در ${supportLtr("GitHub")} فعاله",
+        )
+        UpdateUiState.Checking -> homeText(
+            "Checking GitHub Releases…",
+            "در حال بررسی ${supportLtr("GitHub Releases")}…",
+        )
+        UpdateUiState.UpToDate -> homeText("You are using the latest release", "از آخرین نسخه استفاده می‌کنی")
+        is UpdateUiState.Available -> homeText(
+            "Version ${state.release.version} is ready",
+            "نسخه ${supportLtr(state.release.version)} آماده‌ست",
+        )
+        is UpdateUiState.Downloading -> state.progress?.let {
+            homeText("Downloading update… $it%", "در حال دانلود به‌روزرسانی… ${supportLtr("$it%")}")
+        } ?: homeText("Downloading update…", "در حال دانلود به‌روزرسانی…")
+        is UpdateUiState.Ready -> localizedUpdateMessage(state.message)
+        is UpdateUiState.Error -> localizedUpdateMessage(state.message)
     }
     val statusColor = when (state) {
         UpdateUiState.UpToDate -> UacColors.ConnectedGreen
@@ -245,7 +270,7 @@ private fun VersionAndUpdateCard(
             }
             Spacer(Modifier.size(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("Current version", color = UacColors.TextSecondary, fontSize = 10.5.sp)
+                Text(homeText("Current version", "نسخه فعلی"), color = UacColors.TextSecondary, fontSize = 10.5.sp)
                 Text("v${BuildConfig.VERSION_NAME}", color = UacColors.TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
             }
             if (state == UpdateUiState.Checking) {
@@ -253,7 +278,16 @@ private fun VersionAndUpdateCard(
             }
         }
         Spacer(Modifier.height(12.dp))
-        Text(status, color = statusColor, fontSize = 11.5.sp)
+        Text(
+            status,
+            modifier = Modifier.fillMaxWidth(),
+            color = statusColor,
+            fontSize = 11.5.sp,
+            textAlign = if (LocalHomePersian.current) TextAlign.Right else TextAlign.Start,
+            style = LocalTextStyle.current.copy(
+                textDirection = if (LocalHomePersian.current) TextDirection.Rtl else TextDirection.Content,
+            ),
+        )
         Spacer(Modifier.height(12.dp))
         Button(
             onClick = { if (availableRelease != null) onUpdate(availableRelease) else onCheckForUpdate() },
@@ -268,7 +302,12 @@ private fun VersionAndUpdateCard(
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.size(7.dp))
-            Text(if (availableRelease != null) "Update now" else "Check for updates", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                if (availableRelease != null) homeText("Update now", "همین حالا به‌روزرسانی کن")
+                else homeText("Check for updates", "بررسی نسخه جدید"),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }
@@ -288,18 +327,27 @@ internal fun AppUpdateDialog(
     } ?: return
     val downloading = state is UpdateUiState.Downloading
     val title = when (state) {
-        is UpdateUiState.Downloading -> "Downloading update"
-        is UpdateUiState.Ready -> "Ready to install"
-        is UpdateUiState.Error -> "Update interrupted"
-        else -> "A new update is ready"
+        is UpdateUiState.Downloading -> homeText("Downloading update", "در حال دانلود به‌روزرسانی")
+        is UpdateUiState.Ready -> homeText("Ready to install", "آماده نصب")
+        is UpdateUiState.Error -> homeText("Update interrupted", "به‌روزرسانی متوقف شد")
+        else -> homeText("A new update is ready", "نسخه جدید آماده‌ست")
     }
     val description = when (state) {
-        is UpdateUiState.Downloading -> "Keep the app open for a moment. The Android installer will appear automatically."
-        is UpdateUiState.Ready -> state.message
-        is UpdateUiState.Error -> state.message
-        else -> "Version ${release.version} is available. Download it securely from the official GitHub release."
+        is UpdateUiState.Downloading -> homeText(
+            "Keep the app open for a moment. The Android installer will appear automatically.",
+            "چند لحظه برنامه رو باز نگه دار. نصب‌کننده ${supportLtr("Android")} خودکار نمایش داده می‌شه.",
+        )
+        is UpdateUiState.Ready -> localizedUpdateMessage(state.message)
+        is UpdateUiState.Error -> localizedUpdateMessage(state.message)
+        else -> homeText(
+            "Version ${release.version} is available. Download it securely from the official GitHub release.",
+            "نسخه ${supportLtr(release.version)} آماده‌ست. فایل از ${supportLtr("Release")} رسمی ${supportLtr("GitHub")} به‌صورت امن دانلود می‌شه.",
+        )
     }
 
+    val baseTextStyle = LocalTextStyle.current
+    val localizedTextStyle = homeLocalizedFont()?.let { baseTextStyle.copy(fontFamily = it) } ?: baseTextStyle
+    CompositionLocalProvider(LocalTextStyle provides localizedTextStyle) {
     Dialog(
         onDismissRequest = { if (!downloading) onDismiss() },
         properties = DialogProperties(
@@ -386,18 +434,53 @@ internal fun AppUpdateDialog(
                             ) {
                                 Icon(Icons.Outlined.Download, null, modifier = Modifier.size(19.dp))
                                 Spacer(Modifier.size(8.dp))
-                                Text(if (state is UpdateUiState.Error) "Try again" else "Download & install", fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (state is UpdateUiState.Error) homeText("Try again", "دوباره امتحان کن")
+                                    else homeText("Download & install", "دانلود و نصب"),
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                             }
                         }
                         TextButton(onClick = onDismiss) {
-                            Text(if (state is UpdateUiState.Ready) "Close" else "Later", color = UacColors.TextSecondary)
+                            Text(
+                                if (state is UpdateUiState.Ready) homeText("Close", "بستن") else homeText("Later", "بعداً"),
+                                color = UacColors.TextSecondary,
+                            )
                         }
                     }
                 }
             }
         }
     }
+    }
 }
+
+@Composable
+private fun localizedUpdateMessage(message: String): String {
+    if (!LocalHomePersian.current) return message
+    return when {
+        message == "Android installer opened. Confirm the update to finish." ->
+            "نصب‌کننده ${supportLtr("Android")} باز شد. برای تکمیل به‌روزرسانی، نصب رو تأیید کن."
+        message == "Allow installs from this app; the installer will open when you return." ->
+            "اجازه نصب از این برنامه رو فعال کن؛ وقتی برگردی نصب‌کننده باز می‌شه."
+        message == "Android installer is unavailable" -> "نصب‌کننده ${supportLtr("Android")} در دسترس نیست"
+        message == "Could not check GitHub Releases" -> "بررسی نسخه‌های جدید ${supportLtr("GitHub")} انجام نشد"
+        message == "The update could not be downloaded" -> "به‌روزرسانی دانلود نشد"
+        message.startsWith("GitHub Releases returned HTTP ") ->
+            "${supportLtr("GitHub Releases")} با خطای ${supportLtr("HTTP ${message.substringAfterLast(' ')}")} پاسخ داد"
+        message.startsWith("Download failed (code ") ->
+            "دانلود انجام نشد ${supportLtr(message.substringAfter("Download failed "))}"
+        message == "Download stopped unexpectedly" -> "دانلود ناگهان متوقف شد"
+        message == "The downloaded APK could not be opened" -> "فایل ${supportLtr("APK")} دانلودشده باز نشد"
+        message == "Downloaded APK URI is unavailable" -> "آدرس فایل ${supportLtr("APK")} دانلودشده در دسترس نیست"
+        message == "The latest release has no readable version" -> "نسخه ${supportLtr("Release")} جدید قابل تشخیص نیست"
+        message.startsWith("Release ") && message.endsWith(" does not include a signed APK") ->
+            "این ${supportLtr("Release")} فایل ${supportLtr("APK")} امضاشده نداره"
+        else -> "به‌روزرسانی انجام نشد. دوباره امتحان کن."
+    }
+}
+
+private fun supportLtr(value: String): String = "\u2066$value\u2069"
 
 internal fun openExternalLink(context: Context, url: String) {
     runCatching {

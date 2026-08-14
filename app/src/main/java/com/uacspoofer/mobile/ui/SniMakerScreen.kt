@@ -40,6 +40,7 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Menu
@@ -62,6 +63,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -70,6 +72,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -79,11 +82,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -118,6 +123,9 @@ internal fun SniMakerScreen(
         }
     }
 
+    val baseTextStyle = LocalTextStyle.current
+    val localizedTextStyle = homeLocalizedFont()?.let { baseTextStyle.copy(fontFamily = it) } ?: baseTextStyle
+    CompositionLocalProvider(LocalTextStyle provides localizedTextStyle) {
     ToolPageBackground(accent = accent) {
         Column(
             modifier = Modifier
@@ -152,11 +160,15 @@ internal fun SniMakerScreen(
             )
 
             Text(
-                text = controller.notice,
+                text = localizedMakerNotice(controller.notice),
                 color = Color(0xFF8FA7BA),
-                fontSize = 10.sp,
+                fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                textAlign = if (LocalHomePersian.current) androidx.compose.ui.text.style.TextAlign.Right else androidx.compose.ui.text.style.TextAlign.Start,
+                style = LocalTextStyle.current.copy(
+                    textDirection = if (LocalHomePersian.current) TextDirection.Rtl else TextDirection.Content,
+                ),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 9.dp),
             )
 
@@ -194,15 +206,20 @@ internal fun SniMakerScreen(
         AlertDialog(
             onDismissRequest = { clearConfirmationVisible = false },
             containerColor = Color(0xFF101E2B),
-            title = { Text("Clear results?", color = Color.White, fontWeight = FontWeight.SemiBold) },
+            title = { Text(homeText("Clear results?", "نتیجه‌ها پاک بشن؟"), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold) },
             text = {
                 Text(
                     if (controller.loading || controller.testing || controller.saving) {
-                    "The active operation will stop and all current results and selections will be removed."
+                        homeText(
+                            "The active operation will stop and all current results and selections will be removed.",
+                            "عملیات در حال اجرا متوقف می‌شه و همه نتیجه‌ها و انتخاب‌های فعلی پاک می‌شن.",
+                        )
                     } else {
-                    "All current results and selections will be removed."
+                        homeText("All current results and selections will be removed.", "همه نتیجه‌ها و انتخاب‌های فعلی پاک می‌شن.")
                     },
                     color = UacColors.TextSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
                 )
             },
             confirmButton = {
@@ -213,13 +230,14 @@ internal fun SniMakerScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB84459)),
                 ) {
-                    Text("CLEAR", fontWeight = FontWeight.Bold)
+                    Text(homeText("CLEAR", "پاک‌کردن"), fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { clearConfirmationVisible = false }) { Text("CANCEL") }
+                TextButton(onClick = { clearConfirmationVisible = false }) { Text(homeText("CANCEL", "لغو"), fontSize = 12.5.sp) }
             },
         )
+    }
     }
 }
 
@@ -237,55 +255,62 @@ private fun MakerTopBar(
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        IconButton(
-            onClick = onMenuClick,
+        Box(
             modifier = Modifier
-                .size(46.dp)
+                .size(44.dp)
+                .clip(CircleShape)
                 .background(Color(0x99101C29), CircleShape)
-                .border(1.dp, Color.White.copy(alpha = 0.08f), CircleShape),
+                .border(1.dp, Color.White.copy(alpha = 0.08f), CircleShape)
+                .clickable(onClick = onMenuClick),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Menu, "Open navigation", tint = Color.White)
+            Icon(Icons.Outlined.Menu, homeText("Open navigation", "بازکردن منو"), tint = Color.White, modifier = Modifier.size(22.dp))
         }
         Column(Modifier.weight(1f)) {
             Text(
-            "SNI Config Maker",
+                homeText("Config Maker", "ساخت کانفیگ"),
                 color = Color.White,
-                fontSize = 21.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 when {
-                testing -> "Live testing • $healthy healthy"
-                total > 0 -> "$total configurations • $healthy healthy"
-                else -> "Subscription and clipboard profiles"
+                    testing -> homeText("Live testing • $healthy healthy", "تست زنده • $healthy سالم")
+                    total > 0 -> homeText("$total configurations • $healthy healthy", "$total کانفیگ • $healthy سالم")
+                    else -> homeText("Subscription and clipboard profiles", "کانفیگ از لینک اشتراک یا کلیپ‌بورد")
                 },
                 color = UacColors.TextSecondary,
-                fontSize = 10.5.sp,
+                fontSize = 9.8.sp,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        TopActionButton(
-            icon = Icons.Outlined.CloudDownload,
-            description = "Import configurations",
-            accent = Color(0xFF35D6FF),
-            onClick = onImportClick,
-        )
-        TopActionButton(
-            icon = Icons.Outlined.Tune,
-            description = "Test settings",
-            accent = Color(0xFF9EB6CA),
-            onClick = onSettingsClick,
-        )
-        TopActionButton(
-            icon = Icons.Outlined.DeleteSweep,
-            description = "Clear current results",
-            accent = Color(0xFFFF7187),
-            enabled = canClear,
-            onClick = onClearClick,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TopActionButton(
+                icon = Icons.Outlined.CloudDownload,
+                description = homeText("Import configurations", "واردکردن کانفیگ‌ها"),
+                accent = Color(0xFF35D6FF),
+                onClick = onImportClick,
+            )
+            TopActionButton(
+                icon = Icons.Outlined.Tune,
+                description = homeText("Test settings", "تنظیمات تست"),
+                accent = Color(0xFF9EB6CA),
+                onClick = onSettingsClick,
+            )
+            TopActionButton(
+                icon = Icons.Outlined.DeleteSweep,
+                description = homeText("Clear current results", "پاک‌کردن نتیجه‌ها"),
+                accent = Color(0xFFFF7187),
+                enabled = canClear,
+                onClick = onClearClick,
+            )
+        }
     }
 }
 
@@ -297,19 +322,21 @@ private fun TopActionButton(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    IconButton(
-        onClick = onClick,
-        enabled = enabled,
+    val shape = RoundedCornerShape(12.dp)
+    Box(
         modifier = Modifier
             .size(42.dp)
-            .background(Color(0x99101C29), RoundedCornerShape(13.dp))
-            .border(1.dp, accent.copy(alpha = 0.25f), RoundedCornerShape(13.dp)),
+            .clip(shape)
+            .background(Color(0x99101C29), shape)
+            .border(1.dp, accent.copy(alpha = 0.30f), shape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             icon,
             description,
             tint = if (enabled) accent else UacColors.TextSecondary.copy(alpha = 0.28f),
-            modifier = Modifier.size(21.dp),
+            modifier = Modifier.size(19.dp),
         )
     }
 }
@@ -340,14 +367,14 @@ private fun MakerProgressStrip(
             Column(Modifier.weight(1f)) {
                 Text(
                     when {
-            loading -> "Receiving configurations…"
-            saving -> "Saving healthy configurations…"
-            testing -> "$completed of $total tested • $testingCount active"
-            total > 0 -> "$completed of $total tested"
-            else -> "Import profiles to begin"
+                        loading -> homeText("Receiving configurations…", "در حال دریافت کانفیگ‌ها…")
+                        saving -> homeText("Saving healthy configurations…", "در حال ذخیره کانفیگ‌های سالم…")
+                        testing -> homeText("$completed of $total tested • $testingCount active", "$completed از $total تست شد • $testingCount فعال")
+                        total > 0 -> homeText("$completed of $total tested", "$completed از $total تست شد")
+                        else -> homeText("Import profiles to begin", "برای شروع، کانفیگ وارد کن")
                     },
                     color = Color(0xFFC9D8E5),
-                    fontSize = 10.5.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                 )
@@ -380,7 +407,11 @@ private fun MakerProgressStrip(
                     Icon(Icons.Outlined.Speed, null, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(5.dp))
-                Text(if (testing) "STOP" else "TEST", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    if (testing) homeText("STOP", "توقف") else homeText("TEST", "تست"),
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                )
             }
             IconButton(
                 onClick = onSaveClick,
@@ -396,7 +427,7 @@ private fun MakerProgressStrip(
                 } else {
                     Icon(
                         Icons.Outlined.Save,
-            "Save healthy configurations",
+                        homeText("Save healthy configurations", "ذخیره کانفیگ‌های سالم"),
                         tint = if (healthyCount > 0 && !testing && !loading) UacColors.ConnectedGreen else UacColors.TextSecondary.copy(alpha = 0.35f),
                     )
                 }
@@ -416,28 +447,36 @@ private fun MakerResultsTable(
     onToggleAll: () -> Unit,
     onSortStatus: () -> Unit,
 ) {
-    Column(modifier = modifier.background(Color(0x66071522), RoundedCornerShape(12.dp))) {
+    Column(modifier = modifier) {
         MakerHeader(
             allMarked = allMarked,
             sortMode = sortMode,
             onToggleAll = onToggleAll,
             onSortStatus = onSortStatus,
         )
-        HorizontalDivider(color = Color(0xFF1C354A), thickness = 1.dp)
+        Spacer(Modifier.height(5.dp))
         if (rows.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.fillMaxSize().background(Color(0x66071522), RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Outlined.CloudDownload, null, tint = UacColors.TextSecondary.copy(alpha = 0.45f))
                     Spacer(Modifier.height(9.dp))
-                    Text("No configurations", color = UacColors.TextSecondary, fontSize = 12.sp)
-                    Text("Tap the download icon to import", color = UacColors.TextSecondary.copy(alpha = 0.65f), fontSize = 10.sp)
+                    Text(homeText("No configurations", "هنوز کانفیگی اضافه نشده"), color = UacColors.TextSecondary, fontSize = 13.sp)
+                    Text(homeText("Tap the download icon to import", "برای واردکردن کانفیگ، آیکون دانلود رو بزن"), color = UacColors.TextSecondary.copy(alpha = 0.65f), fontSize = 10.5.sp)
                 }
             }
         } else {
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
                 items(rows, key = { it.profile.id }) { row ->
-                    MakerResultRowFull(row = row, onToggle = { onToggle(row.profile.id) })
+                    MakerResultCard(row = row, onToggle = { onToggle(row.profile.id) })
                 }
+                item { Spacer(Modifier.height(4.dp)) }
             }
         }
     }
@@ -450,28 +489,45 @@ private fun MakerHeader(
     onToggleAll: () -> Unit,
     onSortStatus: () -> Unit,
 ) {
+    val sortLabel = when (sortMode) {
+        MakerSortMode.ORIGINAL -> homeText("Default order", "چیدمان پیش‌فرض")
+        MakerSortMode.HEALTHY_FIRST -> homeText("Healthy first", "سالم‌ها اول")
+        MakerSortMode.FAILED_FIRST -> homeText("Failed first", "ناموفق‌ها اول")
+    }
     Row(
-        modifier = Modifier.fillMaxWidth().height(39.dp).padding(end = 5.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(35.dp)
+            .background(Color(0x66071522), RoundedCornerShape(10.dp))
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(
             checked = allMarked,
             onCheckedChange = { onToggleAll() },
-            modifier = Modifier.width(37.dp),
+            modifier = Modifier.size(34.dp),
             colors = makerCheckboxColors(),
         )
-        Text("Country", color = Color(0xFF77CEE9), fontSize = 9.sp, modifier = Modifier.width(62.dp))
+        Spacer(Modifier.width(3.dp))
+        Text(
+            homeText("Select all", "انتخاب همه"),
+            color = Color(0xFFC9D8E5),
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.weight(1f))
         Row(
             modifier = Modifier
-                .width(82.dp)
                 .fillMaxHeight()
-                .clickable(onClick = onSortStatus),
+                .clickable(onClick = onSortStatus)
+                .padding(horizontal = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-            "Status",
+                sortLabel,
                 color = if (sortMode == MakerSortMode.ORIGINAL) Color(0xFF77CEE9) else Color(0xFF35D6FF),
-                fontSize = 9.sp,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
             )
             Spacer(Modifier.width(3.dp))
             Icon(
@@ -480,13 +536,189 @@ private fun MakerHeader(
                     MakerSortMode.HEALTHY_FIRST -> Icons.Outlined.ArrowUpward
                     MakerSortMode.FAILED_FIRST -> Icons.Outlined.ArrowDownward
                 },
-            "Sort by status",
+                homeText("Sort by status", "مرتب‌سازی وضعیت"),
                 tint = if (sortMode == MakerSortMode.ORIGINAL) UacColors.TextSecondary else Color(0xFF35D6FF),
                 modifier = Modifier.size(14.dp),
             )
         }
-        Text("Ping", color = Color(0xFF77CEE9), fontSize = 9.sp, modifier = Modifier.width(52.dp))
-        Text("Configuration", color = Color(0xFF77CEE9), fontSize = 9.sp, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun MakerResultCard(row: MakerConfigRow, onToggle: () -> Unit) {
+    val statusColor = when (row.status) {
+        MakerTestStatus.QUEUED -> Color(0xFF8295A7)
+        MakerTestStatus.TESTING -> Color(0xFF35D6FF)
+        MakerTestStatus.HEALTHY -> UacColors.ConnectedGreen
+        MakerTestStatus.FAILED -> Color(0xFFFF6F88)
+    }
+    val statusLabel = when (row.status) {
+        MakerTestStatus.QUEUED -> homeText("Queued", "در صف")
+        MakerTestStatus.TESTING -> homeText("Testing", "در حال تست")
+        MakerTestStatus.HEALTHY -> homeText("Healthy", "سالم")
+        MakerTestStatus.FAILED -> homeText("Failed", "ناموفق")
+    }
+    val candidateColor = when (row.candidateStage) {
+        SniCandidateStage.STARTING, SniCandidateStage.PROBING -> Color(0xFF35D6FF)
+        SniCandidateStage.REJECTED -> Color(0xFFFFB454)
+        SniCandidateStage.FAILED, SniCandidateStage.EXHAUSTED -> Color(0xFFFF6F88)
+        SniCandidateStage.PASSED -> UacColors.ConnectedGreen
+        null -> UacColors.TextSecondary
+    }
+    val candidateTitle = when (row.candidateStage) {
+        SniCandidateStage.PASSED -> homeText("Selected route (winner)", "مسیر انتخاب‌شده (برنده)")
+        SniCandidateStage.EXHAUSTED -> homeText("Best available result", "بهترین نتیجه موجود")
+        SniCandidateStage.FAILED, SniCandidateStage.REJECTED -> homeText("Last tested candidate", "آخرین گزینه تست‌شده")
+        else -> homeText("Current candidate", "گزینه فعلی")
+    }
+    val shape = RoundedCornerShape(14.dp)
+    var detailsExpanded by rememberSaveable(row.profile.id) { mutableStateOf(false) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xD9071827), shape)
+            .border(
+                width = if (row.marked) 1.1.dp else 0.7.dp,
+                color = if (row.marked) statusColor.copy(alpha = 0.78f) else Color(0xFF1A405A),
+                shape = shape,
+            )
+            .animateContentSize()
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { detailsExpanded = !detailsExpanded },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = row.marked,
+                onCheckedChange = { onToggle() },
+                modifier = Modifier.size(34.dp),
+                colors = makerCheckboxColors(),
+            )
+            Spacer(Modifier.width(7.dp))
+            Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+                if (row.country.isKnown) {
+                    CountryFlagIcon(row.country, size = 31.dp)
+                } else {
+                    Text("—", color = UacColors.TextSecondary, fontSize = 15.sp)
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    row.profile.name,
+                    color = Color(0xFFE4EEF5),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    row.displayUri,
+                    color = Color(0xFF8EA7B9),
+                    fontSize = 9.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.width(7.dp))
+            Surface(color = statusColor.copy(alpha = 0.105f), shape = RoundedCornerShape(16.dp)) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(7.dp).background(statusColor, CircleShape))
+                    Spacer(Modifier.width(5.dp))
+                    Text(statusLabel, color = statusColor, fontSize = 10.5.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                }
+            }
+            Spacer(Modifier.width(7.dp))
+            Icon(
+                if (detailsExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                homeText("Candidate details", "جزئیات گزینه"),
+                tint = UacColors.TextSecondary,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        if (row.candidateId.isNotBlank()) {
+            Spacer(Modifier.height(7.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(candidateColor.copy(alpha = 0.075f), RoundedCornerShape(11.dp))
+                    .border(0.7.dp, candidateColor.copy(alpha = 0.24f), RoundedCornerShape(11.dp))
+                    .clickable { detailsExpanded = !detailsExpanded }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(35.dp)
+                        .background(candidateColor.copy(alpha = 0.09f), CircleShape)
+                        .border(0.8.dp, candidateColor.copy(alpha = 0.55f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (row.candidateStage == SniCandidateStage.PASSED) {
+                        Icon(Icons.Outlined.EmojiEvents, null, tint = candidateColor, modifier = Modifier.size(18.dp))
+                    } else if (row.status == MakerTestStatus.TESTING) {
+                        CircularProgressIndicator(modifier = Modifier.size(17.dp), color = candidateColor, strokeWidth = 1.8.dp)
+                    } else {
+                        Box(Modifier.size(8.dp).background(candidateColor, CircleShape))
+                    }
+                }
+                Spacer(Modifier.width(9.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(candidateTitle, color = candidateColor, fontSize = 10.5.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        row.candidateId,
+                        color = Color(0xFFE2EDF4),
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        row.candidateLabel,
+                        color = UacColors.TextSecondary,
+                        fontSize = 9.5.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (detailsExpanded) {
+                Column(Modifier.padding(start = 44.dp, top = 7.dp, end = 4.dp, bottom = 2.dp)) {
+                    Text(
+                        homeText(
+                            "Candidate ${row.candidateIndex} of ${row.candidateCount}",
+                            "گزینه ${row.candidateIndex} از ${row.candidateCount}",
+                        ),
+                        color = candidateColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(homeText("Result", "نتیجه"), color = UacColors.TextSecondary, fontSize = 9.5.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        row.candidateDetail.ifBlank { homeText("Waiting for probe result…", "در انتظار نتیجه تست…") },
+                        color = candidateColor.copy(alpha = 0.92f),
+                        fontSize = 9.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(homeText("Route", "مسیر"), color = UacColors.TextSecondary, fontSize = 9.5.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        row.candidateRoute.ifBlank { homeText("Preparing route…", "در حال آماده‌سازی مسیر…") },
+                        color = Color(0xFFAFC2D0),
+                        fontSize = 9.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -814,6 +1046,9 @@ private fun ImportSourceSheet(
     onReceive: () -> Unit,
 ) {
     val context = LocalContext.current
+    val baseTextStyle = LocalTextStyle.current
+    val localizedTextStyle = homeLocalizedFont()?.let { baseTextStyle.copy(fontFamily = it) } ?: baseTextStyle
+    CompositionLocalProvider(LocalTextStyle provides localizedTextStyle) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -835,23 +1070,27 @@ private fun ImportSourceSheet(
                 .padding(start = 18.dp, end = 18.dp, bottom = 18.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp),
         ) {
-            Text("Import configurations", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(homeText("Import configurations", "واردکردن کانفیگ‌ها"), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                "Choose one source. Receive reads only the selected source.",
+                homeText(
+                    "Choose one source. Receive reads only the selected source.",
+                    "یکی از روش‌ها رو انتخاب کن؛ فقط اطلاعات همان بخش دریافت می‌شه.",
+                ),
                 color = UacColors.TextSecondary,
-                fontSize = 11.sp,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 ImportSourceChoice(
                     icon = Icons.Outlined.CloudDownload,
-                    label = "SUBSCRIPTION URL",
+                    label = homeText("SUBSCRIPTION URL", "لینک اشتراک"),
                     selected = controller.importSource == MakerImportSource.SUBSCRIPTION,
                     modifier = Modifier.weight(1f),
                     onClick = { controller.selectImportSource(MakerImportSource.SUBSCRIPTION) },
                 )
                 ImportSourceChoice(
                     icon = Icons.Outlined.ContentPaste,
-                    label = "CLIPBOARD",
+                    label = homeText("CLIPBOARD", "کلیپ‌بورد"),
                     selected = controller.importSource == MakerImportSource.CLIPBOARD,
                     modifier = Modifier.weight(1f),
                     onClick = { controller.selectImportSource(MakerImportSource.CLIPBOARD) },
@@ -866,11 +1105,11 @@ private fun ImportSourceSheet(
                     value = controller.subscriptionUrl,
                     onValueChange = controller::updateSubscriptionUrl,
                     modifier = Modifier.weight(1f),
-                    label = { Text("Subscription URL") },
+                    label = { Text(homeText("Subscription URL", "لینک اشتراک"), fontSize = 12.sp) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     colors = toolTextFieldColors(Color(0xFF35D6FF)),
-                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.sp),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, textDirection = TextDirection.Ltr),
                 )
                 IconButton(
                     onClick = controller::resetSubscriptionUrl,
@@ -881,7 +1120,7 @@ private fun ImportSourceSheet(
                 ) {
                     Icon(
                         Icons.Outlined.RestartAlt,
-                    "Reset subscription URL",
+                        homeText("Reset subscription URL", "بازنشانی لینک اشتراک"),
                         tint = Color(0xFF35D6FF),
                         modifier = Modifier.size(20.dp),
                     )
@@ -891,10 +1130,10 @@ private fun ImportSourceSheet(
                 value = controller.pastedConfigs,
                 onValueChange = controller::updatePastedConfigs,
                 modifier = Modifier.fillMaxWidth().height(132.dp),
-                label = { Text("Clipboard configurations / Base64") },
+                label = { Text(homeText("Clipboard configurations / Base64", "کانفیگ‌های کلیپ‌بورد / Base64"), fontSize = 12.sp) },
                 maxLines = 6,
                 colors = toolTextFieldColors(Color(0xFF35D6FF)),
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 9.5.sp, fontFamily = FontFamily.Monospace),
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.sp, fontFamily = FontFamily.Monospace, textDirection = TextDirection.Ltr),
             )
             OutlinedButton(
                 onClick = {
@@ -907,7 +1146,7 @@ private fun ImportSourceSheet(
             ) {
                 Icon(Icons.Outlined.ContentPaste, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(7.dp))
-                Text("PASTE FROM CLIPBOARD", fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                Text(homeText("PASTE FROM CLIPBOARD", "چسباندن از کلیپ‌بورد"), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
             Button(
                 onClick = onReceive,
@@ -930,15 +1169,16 @@ private fun ImportSourceSheet(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     if (controller.importSource == MakerImportSource.SUBSCRIPTION) {
-                    "RECEIVE FROM URL"
+                        homeText("RECEIVE FROM URL", "دریافت از لینک")
                     } else {
-                    "RECEIVE FROM CLIPBOARD"
+                        homeText("RECEIVE FROM CLIPBOARD", "دریافت از کلیپ‌بورد")
                     },
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
         }
+    }
     }
 }
 
@@ -974,7 +1214,7 @@ private fun ImportSourceChoice(
             Text(
                 label,
                 color = if (selected) Color.White else UacColors.TextSecondary,
-                fontSize = 9.5.sp,
+                fontSize = 11.5.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1,
             )
@@ -988,6 +1228,9 @@ private fun TestSettingsSheet(
     controller: SniMakerController,
     onDismiss: () -> Unit,
 ) {
+    val baseTextStyle = LocalTextStyle.current
+    val localizedTextStyle = homeLocalizedFont()?.let { baseTextStyle.copy(fontFamily = it) } ?: baseTextStyle
+    CompositionLocalProvider(LocalTextStyle provides localizedTextStyle) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -1008,8 +1251,12 @@ private fun TestSettingsSheet(
                 Icon(Icons.Outlined.Tune, null, tint = Color(0xFF35D6FF))
                 Spacer(Modifier.width(9.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Test settings", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Captured when the next test run starts", color = UacColors.TextSecondary, fontSize = 10.5.sp)
+                    Text(homeText("Test settings", "تنظیمات تست"), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        homeText("Captured when the next test run starts", "این تنظیمات از شروع تست بعدی اعمال می‌شن"),
+                        color = UacColors.TextSecondary,
+                        fontSize = 12.5.sp,
+                    )
                 }
             }
             TestModeDropdown(
@@ -1018,8 +1265,8 @@ private fun TestSettingsSheet(
             )
             if (controller.testMode == MakerTestMode.DEEP_ADAPTIVE) {
                 SettingStepper(
-                    title = "Concurrent tests",
-                    subtitle = "More threads are faster but use more memory",
+                    title = homeText("Concurrent tests", "تست‌های هم‌زمان"),
+                    subtitle = homeText("More threads are faster but use more memory", "تعداد بیشتر سریع‌تره، ولی حافظه بیشتری مصرف می‌کنه"),
                     valueText = controller.workerCount.toString(),
                     canDecrease = controller.workerCount > SniMakerController.MIN_WORKERS,
                     canIncrease = controller.workerCount < SniMakerController.MAX_WORKERS,
@@ -1027,8 +1274,8 @@ private fun TestSettingsSheet(
                     onIncrease = { controller.updateWorkerCount(controller.workerCount + 1) },
                 )
                 SettingStepper(
-                    title = "Timeout per configuration",
-                    subtitle = "Total time allowed for all route attempts",
+                    title = homeText("Timeout per configuration", "زمان انتظار هر کانفیگ"),
+                    subtitle = homeText("Total time allowed for all route attempts", "حداکثر زمان برای امتحان‌کردن همه مسیرها"),
                     valueText = "${controller.timeoutMs / 1000}s",
                     canDecrease = controller.timeoutMs > SniMakerController.MIN_TIMEOUT_MS,
                     canIncrease = controller.timeoutMs < SniMakerController.MAX_TIMEOUT_MS,
@@ -1043,7 +1290,7 @@ private fun TestSettingsSheet(
                 ) {
                     Icon(Icons.Outlined.RestartAlt, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("RESET")
+                    Text(homeText("RESET", "بازنشانی"), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
                 Button(
                     onClick = onDismiss,
@@ -1051,10 +1298,11 @@ private fun TestSettingsSheet(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196E3)),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text("DONE", fontWeight = FontWeight.Bold)
+                    Text(homeText("DONE", "انجام شد"), fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
+    }
     }
 }
 
@@ -1065,12 +1313,18 @@ private fun TestModeDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val title = when (selected) {
-        MakerTestMode.COMPATIBILITY -> "Compatibility Scan"
-        MakerTestMode.DEEP_ADAPTIVE -> "Deep Adaptive Test"
+        MakerTestMode.COMPATIBILITY -> homeText("Compatibility Scan", "تست سازگاری")
+        MakerTestMode.DEEP_ADAPTIVE -> homeText("Deep Adaptive Test", "تست تطبیقی عمیق")
     }
     val subtitle = when (selected) {
-        MakerTestMode.COMPATIBILITY -> "Same reliable ping method used in Configs + country flag"
-        MakerTestMode.DEEP_ADAPTIVE -> "Hard test across Edge, DNS and Fragment candidates"
+        MakerTestMode.COMPATIBILITY -> homeText(
+            "Same reliable ping method used in Configs + country flag",
+            "همان روش پینگ مطمئن بخش کانفیگ‌ها همراه با پرچم کشور",
+        )
+        MakerTestMode.DEEP_ADAPTIVE -> homeText(
+            "Hard test across Edge, DNS and Fragment candidates",
+            "همه گزینه‌های مسیر با تست سخت بررسی می‌شن",
+        )
     }
     Box(Modifier.fillMaxWidth()) {
         Surface(
@@ -1086,11 +1340,11 @@ private fun TestModeDropdown(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Test method", color = Color(0xFF77CEE9), fontSize = 9.5.sp)
-                    Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Text(subtitle, color = UacColors.TextSecondary, fontSize = 9.2.sp)
+                    Text(homeText("Test method", "روش تست"), color = Color(0xFF77CEE9), fontSize = 11.sp)
+                    Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(subtitle, color = UacColors.TextSecondary, fontSize = 11.5.sp, lineHeight = 16.sp)
                 }
-                Icon(Icons.Outlined.KeyboardArrowDown, "Select test method", tint = Color(0xFF35D6FF))
+                Icon(Icons.Outlined.KeyboardArrowDown, homeText("Select test method", "انتخاب روش تست"), tint = Color(0xFF35D6FF))
             }
         }
         DropdownMenu(
@@ -1102,12 +1356,18 @@ private fun TestModeDropdown(
         ) {
             MakerTestMode.entries.forEach { mode ->
                 val modeTitle = when (mode) {
-                    MakerTestMode.COMPATIBILITY -> "Compatibility Scan (Default)"
-                    MakerTestMode.DEEP_ADAPTIVE -> "Deep Adaptive Test"
+                    MakerTestMode.COMPATIBILITY -> homeText("Compatibility Scan (Default)", "تست سازگاری (پیش‌فرض)")
+                    MakerTestMode.DEEP_ADAPTIVE -> homeText("Deep Adaptive Test", "تست تطبیقی عمیق")
                 }
                 val modeSubtitle = when (mode) {
-                    MakerTestMode.COMPATIBILITY -> "Configs ping method + automatic country flag"
-                    MakerTestMode.DEEP_ADAPTIVE -> "Hard Edge, DNS and Fragment candidate test"
+                    MakerTestMode.COMPATIBILITY -> homeText(
+                        "Configs ping method + automatic country flag",
+                        "روش پینگ بخش کانفیگ‌ها همراه با پرچم خودکار کشور",
+                    )
+                    MakerTestMode.DEEP_ADAPTIVE -> homeText(
+                        "Hard Edge, DNS and Fragment candidate test",
+                        "همه گزینه‌های مسیر با تست سخت بررسی می‌شن",
+                    )
                 }
                 DropdownMenuItem(
                     text = {
@@ -1115,9 +1375,10 @@ private fun TestModeDropdown(
                             Text(
                                 modeTitle,
                                 color = if (mode == selected) Color(0xFF35D6FF) else Color.White,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
                             )
-                            Text(modeSubtitle, color = UacColors.TextSecondary, fontSize = 9.sp)
+                            Text(modeSubtitle, color = UacColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
                         }
                     },
                     onClick = {
@@ -1146,25 +1407,89 @@ private fun SettingStepper(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 12.5.sp, fontWeight = FontWeight.Medium)
-                Text(subtitle, color = UacColors.TextSecondary, fontSize = 9.5.sp, maxLines = 1)
+                Text(title, fontSize = 14.5.sp, fontWeight = FontWeight.Medium)
+                Text(subtitle, color = UacColors.TextSecondary, fontSize = 11.sp, maxLines = 2, lineHeight = 15.sp)
             }
             IconButton(onClick = onDecrease, enabled = canDecrease, modifier = Modifier.size(38.dp)) {
-                Icon(Icons.Outlined.Remove, "Decrease", tint = if (canDecrease) Color(0xFF35D6FF) else UacColors.TextSecondary.copy(alpha = 0.35f))
+                Icon(Icons.Outlined.Remove, homeText("Decrease", "کم‌کردن"), tint = if (canDecrease) Color(0xFF35D6FF) else UacColors.TextSecondary.copy(alpha = 0.35f))
             }
             Text(
                 valueText,
                 color = Color.White,
-                fontSize = 13.sp,
+                fontSize = 14.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.width(48.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
             IconButton(onClick = onIncrease, enabled = canIncrease, modifier = Modifier.size(38.dp)) {
-                Icon(Icons.Outlined.Add, "Increase", tint = if (canIncrease) Color(0xFF35D6FF) else UacColors.TextSecondary.copy(alpha = 0.35f))
+                Icon(Icons.Outlined.Add, homeText("Increase", "بیشترکردن"), tint = if (canIncrease) Color(0xFF35D6FF) else UacColors.TextSecondary.copy(alpha = 0.35f))
             }
         }
     }
+}
+
+@Composable
+private fun localizedMakerNotice(message: String): String {
+    if (!LocalHomePersian.current) return message
+    val translated = when {
+        message == "Add a subscription URL or paste configurations" -> "یک لینک اشتراک اضافه کن یا کانفیگ‌ها رو اینجا بچسبون"
+        message == "Default subscription URL restored" -> "لینک اشتراک پیش‌فرض برگردانده شد"
+        message == "Clipboard loaded" -> "محتوای کلیپ‌بورد دریافت شد"
+        message.startsWith("Large clipboard loaded safely • ") -> {
+            val count = message.substringAfter("• ").substringBefore(' ')
+            "محتوای بزرگ کلیپ‌بورد با خیال راحت دریافت شد • $count نویسه"
+        }
+        message == "Receiving subscription configurations…" -> "در حال دریافت کانفیگ‌های اشتراک…"
+        message == "Decoding clipboard configurations…" -> "در حال پردازش کانفیگ‌های کلیپ‌بورد…"
+        message.startsWith("Receive failed: ") -> "دریافت انجام نشد: ${message.substringAfter(": ")}"
+        message.startsWith("Preparing adaptive test for ") -> {
+            val count = message.substringAfter("for ").substringBefore(' ')
+            "در حال آماده‌سازی تست تطبیقی برای $count کانفیگ…"
+        }
+        message.startsWith("Compatibility Scan | ") -> {
+            val count = message.substringAfter("| ").substringBefore(' ')
+            "تست سازگاری • $count کانفیگ • روش پینگ بخش کانفیگ‌ها"
+        }
+        message.startsWith("Deep Adaptive Test | ") -> {
+            val parts = message.split(" | ")
+            val count = parts.getOrNull(1)?.substringBefore(' ').orEmpty()
+            val workers = parts.getOrNull(2)?.substringBefore(' ').orEmpty()
+            val timeout = parts.getOrNull(3).orEmpty()
+            "تست تطبیقی عمیق • $count کانفیگ • $workers تست هم‌زمان • زمان انتظار $timeout"
+        }
+        message.startsWith("Test complete • ") -> {
+            val parts = message.split(" • ")
+            val healthy = parts.getOrNull(1)?.substringBefore(' ').orEmpty()
+            val failed = parts.getOrNull(2)?.substringBefore(' ').orEmpty()
+            "تست تمام شد • $healthy سالم • $failed ناموفق"
+        }
+        message.startsWith("Tests stopped • ") -> {
+            val healthy = message.substringAfter("• ").substringBefore(' ')
+            "تست متوقف شد • $healthy نتیجه سالم نگه داشته شد"
+        }
+        message.startsWith("Adaptive test setup failed: ") -> "راه‌اندازی تست تطبیقی انجام نشد: ${message.substringAfter(": ")}"
+        message == "Results cleared" -> "نتیجه‌ها پاک شدند"
+        message == "No healthy configuration selected" -> "هیچ کانفیگ سالمی انتخاب نشده"
+        message.startsWith("Saving ") && message.endsWith(" healthy configurations…") -> {
+            val count = message.substringAfter("Saving ").substringBefore(' ')
+            "در حال ذخیره $count کانفیگ سالم…"
+        }
+        message.endsWith(" healthy configurations saved to Configs") -> {
+            val count = message.substringBefore(' ')
+            "$count کانفیگ سالم در بخش کانفیگ‌ها ذخیره شد"
+        }
+        message.startsWith("Save failed: ") -> "ذخیره انجام نشد: ${message.substringAfter(": ")}"
+        message.contains(" new configurations added") -> message
+            .replace(Regex("(\\d+) new configurations added"), "$1 کانفیگ جدید اضافه شد")
+            .replace(Regex("(\\d+) total"), "$1 کانفیگ در فهرست")
+            .replace(Regex("(\\d+) duplicates kept once"), "$1 مورد تکراری فقط یک‌بار نگه داشته شد")
+            .replace(Regex("(\\d+) skipped by list limit"), "$1 مورد به‌دلیل محدودیت فهرست رد شد")
+            .replace(Regex("(\\d+) Base64 decoded"), "$1 داده Base64 باز شد")
+            .replace(Regex("(\\d+) invalid skipped"), "$1 مورد خراب رد شد")
+            .replace("input limit reached", "ورودی به سقف مجاز رسید")
+        else -> message
+    }
+    return homeText(message, translated)
 }
 
 @Composable
@@ -1173,3 +1498,5 @@ private fun makerCheckboxColors() = CheckboxDefaults.colors(
     uncheckedColor = Color(0xFF7690A8),
     checkmarkColor = Color.White,
 )
+
+private fun makerLtr(value: String): String = "\u2066$value\u2069"

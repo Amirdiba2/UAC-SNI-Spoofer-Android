@@ -279,6 +279,7 @@ private fun LogRow(entry: AppLogEntry) {
     val levelColor = when (entry.level) {
         LogLevel.DEBUG -> Color(0xFF8295AA)
         LogLevel.INFO -> Color(0xFF45B7FF)
+        LogLevel.SUCCESS -> Color(0xFF25E49A)
         LogLevel.WARNING -> Color(0xFFFFC857)
         LogLevel.ERROR -> Color(0xFFFF5261)
     }

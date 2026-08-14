@@ -23,6 +23,7 @@ object AppLogRepository {
 
     fun debug(source: LogSource, message: String) = append(LogLevel.DEBUG, source, message)
     fun info(source: LogSource, message: String) = append(LogLevel.INFO, source, message)
+    fun success(source: LogSource, message: String) = append(LogLevel.SUCCESS, source, message)
     fun warning(source: LogSource, message: String, error: Throwable? = null) =
         append(LogLevel.WARNING, source, withError(message, error))
 
@@ -81,6 +82,7 @@ data class AppLogEntry(
 enum class LogLevel(val label: String) {
     DEBUG("DEBUG"),
     INFO("INFO"),
+    SUCCESS("OK"),
     WARNING("WARN"),
     ERROR("ERROR"),
 }

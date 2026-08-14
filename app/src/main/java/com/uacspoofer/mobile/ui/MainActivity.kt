@@ -2,6 +2,7 @@ package com.uacspoofer.mobile.ui
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
@@ -60,6 +61,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        if (savedInstanceState == null) handleQuickTileIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleQuickTileIntent(intent)
     }
 
     override fun onResume() {
@@ -78,6 +86,12 @@ class MainActivity : ComponentActivity() {
         } else {
             continueConnectionStart()
         }
+    }
+
+    private fun handleQuickTileIntent(source: Intent?) {
+        if (source?.getBooleanExtra(EXTRA_CONNECT_FROM_QUICK_TILE, false) != true) return
+        source.removeExtra(EXTRA_CONNECT_FROM_QUICK_TILE)
+        window.decorView.post { beginConnect() }
     }
 
     private fun continueConnectionStart() {
@@ -131,5 +145,9 @@ class MainActivity : ComponentActivity() {
             runCatching { VpnController.close(this) }
         }
         finishAndRemoveTask()
+    }
+
+    companion object {
+        const val EXTRA_CONNECT_FROM_QUICK_TILE = "com.uacspoofer.mobile.extra.CONNECT_FROM_QUICK_TILE"
     }
 }

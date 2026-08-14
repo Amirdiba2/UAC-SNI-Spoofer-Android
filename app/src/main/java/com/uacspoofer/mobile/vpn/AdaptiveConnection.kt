@@ -8,6 +8,7 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
+import com.uacspoofer.mobile.BuildConfig
 import com.uacspoofer.mobile.mci.MciEdge
 import com.uacspoofer.mobile.mci.MciXrayRuntimeOptions
 import com.uacspoofer.mobile.profiles.DirectCompatProfileParser
@@ -251,7 +252,7 @@ class NetworkFingerprintResolver(context: Context) {
             connection.instanceFollowRedirects = true
             connection.useCaches = false
             connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("User-Agent", "UAC-SNI-Spoofer-Android/2.0.0")
+            connection.setRequestProperty("User-Agent", "UAC-SNI-Spoofer-Android/${BuildConfig.VERSION_NAME}")
             check(connection.responseCode in 200..299) { "identity HTTP ${connection.responseCode}" }
             val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText().take(32_768) })
             val nested = json.optJSONObject("connection")
@@ -398,6 +399,15 @@ class AdaptiveConnectionProbe(
         )
     }
 
+    suspend fun verifyForRouteSpeed(candidate: AdaptiveCandidate): AdaptiveProbeReport =
+        verifyInternal(
+            candidate = candidate,
+            httpTimeoutMs = ROUTE_SPEED_HTTP_TIMEOUT_MS,
+            httpReadBytesPerTarget = ROUTE_SPEED_READ_BYTES_PER_TARGET,
+            dnsTimeoutMs = ROUTE_SPEED_DNS_TIMEOUT_MS,
+            dnsSocketTimeoutMs = ROUTE_SPEED_DNS_SOCKET_TIMEOUT_MS,
+        )
+
     private suspend fun verifyInternal(
         candidate: AdaptiveCandidate,
         httpTimeoutMs: Long? = null,
@@ -469,8 +479,28 @@ class AdaptiveConnectionProbe(
         private const val SNI_MAKER_DNS_TIMEOUT_MS = 2_000L
         private const val SNI_MAKER_DNS_SOCKET_TIMEOUT_MS = 1_750
         private const val SNI_MAKER_READ_BYTES_PER_TARGET = 4_096
+        private const val ROUTE_SPEED_HTTP_TIMEOUT_MS = 8_000L
+        private const val ROUTE_SPEED_DNS_TIMEOUT_MS = 2_500L
+        private const val ROUTE_SPEED_DNS_SOCKET_TIMEOUT_MS = 2_200
+        private const val ROUTE_SPEED_READ_BYTES_PER_TARGET = 64 * 1_024
     }
 }
+
+data class AdaptiveSavedRoute(
+    val id: String,
+    val label: String,
+    val address: String,
+    val port: Int,
+    val role: String,
+    val maxSplit: Int,
+    val resolverUrl: String,
+    val finalmaskPacket: String,
+    val finalmaskLength: Int,
+    val finalmaskDelayMs: Int,
+    val tunMtu: Int,
+    val finalmaskEnabled: Boolean,
+    val directCompat: Boolean,
+)
 
 class AdaptiveProfileStore(context: Context) {
     private val prefs = context.applicationContext
@@ -498,6 +528,118 @@ class AdaptiveProfileStore(context: Context) {
             .putLong("$key:updated", System.currentTimeMillis())
             .remove(failureKey)
             .remove("$failureKey:count")
+            .apply()
+    }
+
+    fun savedRoute(
+        network: NetworkFingerprint,
+        profile: ProxyProfile,
+        signature: String,
+    ): AdaptiveSavedRoute? {
+        val key = key("route", network.learningKey(), profile.id, signature)
+        val updated = prefs.getLong("$key:updated", 0L)
+        if (updated <= 0L || System.currentTimeMillis() - updated > WINNER_TTL_MS) return null
+        val id = prefs.getString("$key:id", null).orEmpty()
+        val address = prefs.getString("$key:address", null).orEmpty()
+        val port = prefs.getInt("$key:port", 0)
+        if (id.isBlank() || address.isBlank() || port !in 1..65_535) return null
+        return AdaptiveSavedRoute(
+            id = id,
+            label = prefs.getString("$key:label", null).orEmpty().ifBlank { "Saved full-matrix route" },
+            address = address,
+            port = port,
+            role = prefs.getString("$key:role", null).orEmpty().ifBlank { "full-matrix" },
+            maxSplit = prefs.getInt("$key:maxSplit", 2).coerceIn(1, 10_000),
+            resolverUrl = prefs.getString("$key:resolver", null).orEmpty(),
+            finalmaskPacket = prefs.getString("$key:packet", null).orEmpty().ifBlank { "tlshello" },
+            finalmaskLength = prefs.getInt("$key:length", 5).coerceIn(1, 65_535),
+            finalmaskDelayMs = prefs.getInt("$key:delay", 0).coerceIn(0, 60_000),
+            tunMtu = prefs.getInt("$key:mtu", 1_280).coerceIn(576, 9_000),
+            finalmaskEnabled = prefs.getBoolean("$key:fragment", true),
+            directCompat = prefs.getBoolean("$key:direct", false),
+        )
+    }
+
+    fun savedBackupRoute(
+        network: NetworkFingerprint,
+        profile: ProxyProfile,
+        signature: String,
+    ): AdaptiveSavedRoute? {
+        val key = key("route-backup", network.learningKey(), profile.id, signature)
+        val updated = prefs.getLong("$key:updated", 0L)
+        if (updated <= 0L || System.currentTimeMillis() - updated > WINNER_TTL_MS) return null
+        val id = prefs.getString("$key:id", null).orEmpty()
+        val address = prefs.getString("$key:address", null).orEmpty()
+        val port = prefs.getInt("$key:port", 0)
+        if (id.isBlank() || address.isBlank() || port !in 1..65_535) return null
+        return AdaptiveSavedRoute(
+            id = id,
+            label = prefs.getString("$key:label", null).orEmpty().ifBlank { "Route Tournament backup" },
+            address = address,
+            port = port,
+            role = prefs.getString("$key:role", null).orEmpty().ifBlank { "route-backup" },
+            maxSplit = prefs.getInt("$key:maxSplit", 2).coerceIn(1, 10_000),
+            resolverUrl = prefs.getString("$key:resolver", null).orEmpty(),
+            finalmaskPacket = prefs.getString("$key:packet", null).orEmpty().ifBlank { "tlshello" },
+            finalmaskLength = prefs.getInt("$key:length", 5).coerceIn(1, 65_535),
+            finalmaskDelayMs = prefs.getInt("$key:delay", 0).coerceIn(0, 60_000),
+            tunMtu = prefs.getInt("$key:mtu", 1_280).coerceIn(576, 9_000),
+            finalmaskEnabled = prefs.getBoolean("$key:fragment", true),
+            directCompat = prefs.getBoolean("$key:direct", false),
+        )
+    }
+
+    fun recordSavedRoute(
+        network: NetworkFingerprint,
+        profile: ProxyProfile,
+        signature: String,
+        candidate: AdaptiveCandidate,
+        score: Int,
+    ) {
+        recordWinner(network, profile, signature, candidate, score)
+        val key = key("route", network.learningKey(), profile.id, signature)
+        prefs.edit()
+            .putString("$key:id", candidate.id)
+            .putString("$key:label", candidate.label)
+            .putString("$key:address", candidate.edge.address)
+            .putInt("$key:port", candidate.edge.port)
+            .putString("$key:role", candidate.edge.role)
+            .putInt("$key:maxSplit", candidate.edge.finalmaskMaxSplit)
+            .putString("$key:resolver", candidate.settings.dnsResolverUrl)
+            .putString("$key:packet", candidate.settings.finalmaskPacket)
+            .putInt("$key:length", candidate.settings.finalmaskLength)
+            .putInt("$key:delay", candidate.settings.finalmaskDelayMs)
+            .putInt("$key:mtu", candidate.settings.tunMtu)
+            .putBoolean("$key:fragment", candidate.runtimeOptions.finalmaskEnabled)
+            .putBoolean("$key:direct", candidate.runtimeOptions.identityOverride != null)
+            .putLong("$key:updated", System.currentTimeMillis())
+            .apply()
+    }
+
+    fun recordSavedBackupRoute(
+        network: NetworkFingerprint,
+        profile: ProxyProfile,
+        signature: String,
+        candidate: AdaptiveCandidate,
+        score: Int,
+    ) {
+        val key = key("route-backup", network.learningKey(), profile.id, signature)
+        prefs.edit()
+            .putString("$key:id", candidate.id)
+            .putString("$key:label", candidate.label)
+            .putString("$key:address", candidate.edge.address)
+            .putInt("$key:port", candidate.edge.port)
+            .putString("$key:role", candidate.edge.role)
+            .putInt("$key:maxSplit", candidate.edge.finalmaskMaxSplit)
+            .putString("$key:resolver", candidate.settings.dnsResolverUrl)
+            .putString("$key:packet", candidate.settings.finalmaskPacket)
+            .putInt("$key:length", candidate.settings.finalmaskLength)
+            .putInt("$key:delay", candidate.settings.finalmaskDelayMs)
+            .putInt("$key:mtu", candidate.settings.tunMtu)
+            .putBoolean("$key:fragment", candidate.runtimeOptions.finalmaskEnabled)
+            .putBoolean("$key:direct", candidate.runtimeOptions.identityOverride != null)
+            .putInt("$key:score", score)
+            .putLong("$key:updated", System.currentTimeMillis())
             .apply()
     }
 
@@ -602,6 +744,13 @@ class AdaptiveCandidatePlanner(private val store: AdaptiveProfileStore) {
         } else {
             null
         }
+        val savedRoute = store.savedRoute(network, profile, signature)
+            ?.toCandidate(settings, profile)
+            ?.copy(learned = true)
+        val savedBackupRoute = store.savedBackupRoute(network, profile, signature)
+            ?.takeIf { it.id != savedRoute?.id }
+            ?.toCandidate(settings, profile)
+            ?.copy(learned = false)
         val raw = when (network.carrierClass) {
             "mci" -> buildList {
                 directCompat?.let { direct ->
@@ -673,9 +822,14 @@ class AdaptiveCandidatePlanner(private val store: AdaptiveProfileStore) {
             raw.firstOrNull { it.id == id && it.id != MCI_DIRECT_COMPAT_ID }?.copy(learned = true)
         }
         val ordered = buildList {
+            if (savedRoute != null) add(savedRoute)
+            if (savedBackupRoute != null) add(savedBackupRoute)
             if (diagnostic != null) add(diagnostic.copy(learned = learnedId == MCI_DIRECT_COMPAT_ID))
-            if (learned != null) add(learned)
-            addAll(raw.filterNot { it.id == learnedId || it.id == MCI_DIRECT_COMPAT_ID })
+            if (learned != null && learned.id != savedRoute?.id) add(learned)
+            addAll(raw.filterNot {
+                it.id == learnedId || it.id == MCI_DIRECT_COMPAT_ID ||
+                    it.id == savedRoute?.id || it.id == savedBackupRoute?.id
+            })
         }
         val (ready, coolingDown) = ordered.partition {
             !store.isCoolingDown(network, profile, signature, it.id)
@@ -683,6 +837,126 @@ class AdaptiveCandidatePlanner(private val store: AdaptiveProfileStore) {
         return (ready + coolingDown)
             .distinctBy(AdaptiveCandidate::id)
             .take(MAX_CANDIDATES)
+    }
+
+    fun routeSpeedCandidates(
+        base: AdvancedSettingsData,
+        network: NetworkFingerprint,
+        profile: ProxyProfile,
+    ): List<AdaptiveCandidate> {
+        val settings = base.validated()
+        val edges = buildList {
+            add(MciEdge(settings.primaryAddress, settings.primaryPort, "primary", settings.primaryMaxSplit))
+            add(MciEdge(settings.irancellAddress, settings.irancellPort, "alternate", settings.irancellMaxSplit))
+            add(MciEdge(settings.fallbackAddress, settings.fallbackPort, "fallback", settings.fallbackMaxSplit))
+            add(MciEdge(settings.telegramFallbackAddress, settings.telegramPort, "cdn-a", 2))
+            add(MciEdge(settings.telegramAddress, settings.telegramPort, "cdn-b", 100))
+            MCI_EDGE_POOL_ADDRESSES.forEachIndexed { index, address ->
+                add(MciEdge(address, MCI_EDGE_POOL_PORT, "edge-${index + 1}", settings.primaryMaxSplit))
+            }
+        }.distinctBy { "${it.address}:${it.port}" }
+        val mtuValues = listOf(1_280, 1_360, 1_400, settings.tunMtu).distinct()
+        val fragmentPresets = buildList {
+            add(RouteFragmentPreset("off", "Fragment off", false, 1, 0))
+            add(RouteFragmentPreset("fast", "Fast split", true, 2, 0))
+            add(RouteFragmentPreset("stable", "Stable split", true, 2, 20))
+            add(RouteFragmentPreset("deep", "Deep split", true, 100, 5))
+            val custom = RouteFragmentPreset(
+                id = "custom",
+                label = "Current custom Fragment",
+                enabled = true,
+                maxSplit = settings.primaryMaxSplit,
+                delayMs = settings.finalmaskDelayMs,
+            )
+            if (none { it.enabled == custom.enabled && it.maxSplit == custom.maxSplit && it.delayMs == custom.delayMs }) {
+                add(custom)
+            }
+        }
+        val matrix = buildList {
+            for (edge in edges) {
+                for (resolver in AdaptiveDnsResolvers.all) {
+                    for (fragment in fragmentPresets) {
+                        for (mtu in mtuValues) {
+                            val id = listOf(
+                                "matrix",
+                                edge.address.replace('.', '-').replace(':', '-'),
+                                edge.port,
+                                resolver.id,
+                                fragment.id,
+                                mtu,
+                            ).joinToString("-")
+                            add(
+                                AdaptiveCandidate(
+                                    id = id,
+                                    label = "${edge.role} • ${resolver.label} • ${fragment.label} • MTU $mtu",
+                                    edge = edge.copy(finalmaskMaxSplit = fragment.maxSplit),
+                                    settings = settings.copy(
+                                        dnsResolverUrl = resolver.url,
+                                        finalmaskDelayMs = fragment.delayMs,
+                                        tunMtu = mtu,
+                                    ).validated(),
+                                    runtimeOptions = MciXrayRuntimeOptions(finalmaskEnabled = fragment.enabled),
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        val direct = if (!profile.isBuiltIn) {
+            DirectCompatProfileParser.parse(profile)?.let { parsed ->
+                AdaptiveCandidate(
+                    id = "matrix-direct-compat",
+                    label = "Direct profile • original transport",
+                    edge = MciEdge(parsed.address, parsed.port, "direct", 1),
+                    settings = settings,
+                    runtimeOptions = MciXrayRuntimeOptions(
+                        identityOverride = parsed.identity,
+                        finalmaskEnabled = false,
+                        preserveEmptyAlpn = true,
+                        preserveTransportFields = true,
+                    ),
+                )
+            }
+        } else {
+            null
+        }
+        val savedId = store.savedRoute(network, profile, signature(settings, profile))?.id
+        return buildList {
+            if (direct != null) add(direct.copy(learned = direct.id == savedId))
+            addAll(matrix.map { if (it.id == savedId) it.copy(learned = true) else it })
+        }.distinctBy(AdaptiveCandidate::id)
+    }
+
+    private fun AdaptiveSavedRoute.toCandidate(
+        base: AdvancedSettingsData,
+        profile: ProxyProfile,
+    ): AdaptiveCandidate? {
+        val runtimeOptions = if (directCompat) {
+            val parsed = DirectCompatProfileParser.parse(profile) ?: return null
+            MciXrayRuntimeOptions(
+                identityOverride = parsed.identity,
+                finalmaskEnabled = false,
+                preserveEmptyAlpn = true,
+                preserveTransportFields = true,
+            )
+        } else {
+            MciXrayRuntimeOptions(finalmaskEnabled = finalmaskEnabled)
+        }
+        return AdaptiveCandidate(
+            id = id,
+            label = label,
+            edge = MciEdge(address, port, role, maxSplit),
+            settings = base.copy(
+                dnsResolverUrl = resolverUrl.ifBlank { base.dnsResolverUrl },
+                finalmaskPacket = finalmaskPacket,
+                finalmaskLength = finalmaskLength,
+                finalmaskDelayMs = finalmaskDelayMs,
+                tunMtu = tunMtu,
+            ).validated(),
+            runtimeOptions = runtimeOptions,
+            learned = true,
+        )
     }
 
     private fun candidate(
@@ -711,6 +985,14 @@ class AdaptiveCandidatePlanner(private val store: AdaptiveProfileStore) {
             AdaptiveDnsResolvers.ADGUARD,
         )
     }
+
+    private data class RouteFragmentPreset(
+        val id: String,
+        val label: String,
+        val enabled: Boolean,
+        val maxSplit: Int,
+        val delayMs: Int,
+    )
 }
 
 private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")

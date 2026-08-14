@@ -34,18 +34,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Block
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,8 +69,10 @@ internal enum class DrawerDestination {
     HOME,
     CONFIGS,
     SNI_MAKER,
+    ROUTE_SPEED_TEST,
     LIVE_LOGS,
     APP_BYPASS,
+    SETTINGS,
     ADVANCED_SETTINGS,
     SUPPORT,
 }
@@ -92,10 +96,11 @@ private val DrawerDivider = Color(0x263E5874)
 private val DrawerItems = listOf(
     DrawerItem(DrawerDestination.HOME, "Home", Icons.Outlined.Home),
     DrawerItem(DrawerDestination.CONFIGS, "Configs", Icons.Outlined.Description),
-    DrawerItem(DrawerDestination.SNI_MAKER, "SNI Config Maker", Icons.Outlined.Code),
+    DrawerItem(DrawerDestination.SNI_MAKER, "Config Maker", Icons.Outlined.Code),
+    DrawerItem(DrawerDestination.ROUTE_SPEED_TEST, "Route Speed Test", Icons.Outlined.Speed),
     DrawerItem(DrawerDestination.LIVE_LOGS, "Logs", Icons.AutoMirrored.Outlined.ListAlt),
     DrawerItem(DrawerDestination.APP_BYPASS, "App Bypass", Icons.Outlined.Block),
-    DrawerItem(DrawerDestination.ADVANCED_SETTINGS, "Advanced Settings", Icons.Outlined.Tune),
+    DrawerItem(DrawerDestination.SETTINGS, "Settings", Icons.Outlined.Settings),
     DrawerItem(DrawerDestination.SUPPORT, "Support", Icons.Outlined.SupportAgent),
 )
 
@@ -163,9 +168,11 @@ internal fun AppDrawer(
     modifier: Modifier = Modifier,
 ) {
     val panelShape = RoundedCornerShape(28.dp)
+    val isPersian = selectedLanguage == DrawerLanguage.PERSIAN
 
-    BoxWithConstraints(
-        modifier = modifier
+    CompositionLocalProvider(LocalHomePersian provides isPersian) {
+        BoxWithConstraints(
+            modifier = modifier
             .graphicsLayer()
             .shadow(
                 elevation = 10.dp,
@@ -184,19 +191,19 @@ internal fun AppDrawer(
                 ),
             )
             .border(1.dp, Color(0x4A34516F), panelShape),
-    ) {
-        val compact = maxHeight < 720.dp
+        ) {
+            val compact = maxHeight < 720.dp
 
-        Column(
-            modifier = Modifier
+            Column(
+                modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(
                     WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical),
                 )
                 .padding(horizontal = 17.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            DrawerHeader(compact = compact)
+            ) {
+                DrawerHeader(compact = compact)
             HorizontalDivider(color = DrawerDivider, thickness = 1.dp)
             Spacer(Modifier.height(if (compact) 6.dp else 10.dp))
 
@@ -223,6 +230,7 @@ internal fun AppDrawer(
                 compact = compact,
             )
             Spacer(Modifier.height(if (compact) 4.dp else 8.dp))
+            }
         }
     }
 }
@@ -255,10 +263,11 @@ private fun DrawerHeader(compact: Boolean) {
         )
         Spacer(Modifier.height(if (compact) 1.dp else 3.dp))
         Text(
-            text = "Secure network tools",
+            text = homeText("Secure network tools", "ابزارهای امن شبکه"),
             color = DrawerMuted,
             fontSize = if (compact) 10.sp else 12.sp,
             fontWeight = FontWeight.Normal,
+            fontFamily = homeLocalizedFont(),
             letterSpacing = 0.25.sp,
             textAlign = TextAlign.Center,
         )
@@ -322,10 +331,24 @@ private fun DrawerNavItem(
             )
             Spacer(Modifier.width(if (compact) 11.dp else 14.dp))
             Text(
-                text = item.label,
+                text = homeText(
+                    item.label,
+                    when (item.destination) {
+                        DrawerDestination.HOME -> "خانه"
+                        DrawerDestination.CONFIGS -> "کانفیگ‌ها"
+                        DrawerDestination.SNI_MAKER -> "ساخت کانفیگ"
+                        DrawerDestination.ROUTE_SPEED_TEST -> "تست سرعت مسیر"
+                        DrawerDestination.LIVE_LOGS -> "لاگ‌ها"
+                        DrawerDestination.APP_BYPASS -> "عبور انتخابی برنامه‌ها"
+                        DrawerDestination.SETTINGS -> "تنظیمات"
+                        DrawerDestination.ADVANCED_SETTINGS -> "تنظیمات پیشرفته"
+                        DrawerDestination.SUPPORT -> "پشتیبانی"
+                    },
+                ),
                 color = if (selected) DrawerText else Color(0xFFC2CEE0),
                 fontSize = if (compact) 12.5.sp else 14.sp,
                 fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                fontFamily = homeLocalizedFont(),
             )
         }
     }
@@ -359,18 +382,23 @@ private fun DrawerSupportCard(compact: Boolean) {
             )
             Spacer(Modifier.width(if (compact) 7.dp else 9.dp))
             Text(
-                text = "Love the app?",
+                text = homeText("Love the app?", "برنامه رو دوست داری؟"),
                 color = Color(0xFFF1ECFF),
                 fontSize = if (compact) 13.sp else 15.sp,
                 fontWeight = FontWeight.SemiBold,
+                fontFamily = homeLocalizedFont(),
             )
         }
         Spacer(Modifier.height(if (compact) 3.dp else 5.dp))
         Text(
-            text = "Your support helps us grow\nand build better tools.",
+            text = homeText(
+                "Your support helps us grow\nand build better tools.",
+                "حمایت شما کمک می‌کنه\nبرنامه بهتر بشه.",
+            ),
             color = Color(0xFFADA8CF),
             fontSize = if (compact) 9.5.sp else 11.5.sp,
             lineHeight = if (compact) 13.sp else 16.sp,
+            fontFamily = homeLocalizedFont(),
         )
         Spacer(Modifier.height(if (compact) 6.dp else 10.dp))
         Row(
@@ -399,10 +427,11 @@ private fun DrawerSupportCard(compact: Boolean) {
             )
             Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
             Text(
-                text = "Star on GitHub",
+                text = homeText("Star on GitHub", "در GitHub ستاره بده"),
                 color = Color.White,
                 fontSize = if (compact) 11.sp else 12.5.sp,
                 fontWeight = FontWeight.Medium,
+                fontFamily = homeLocalizedFont(),
             )
         }
     }
@@ -430,10 +459,11 @@ private fun DrawerLanguageRow(
             )
             Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
             Text(
-                text = "Language",
+                text = homeText("Language", "زبان"),
                 color = Color(0xFFC8D4E5),
                 fontSize = if (compact) 11.sp else 12.5.sp,
                 fontWeight = FontWeight.Medium,
+                fontFamily = homeLocalizedFont(),
             )
         }
 
@@ -450,6 +480,7 @@ private fun DrawerLanguageRow(
                 text = "فارسی",
                 selected = selectedLanguage == DrawerLanguage.PERSIAN,
                 compact = compact,
+                localizedFont = true,
                 onClick = { onLanguageSelected(DrawerLanguage.PERSIAN) },
                 modifier = Modifier.weight(1f),
             )
@@ -457,6 +488,7 @@ private fun DrawerLanguageRow(
                 text = "English",
                 selected = selectedLanguage == DrawerLanguage.ENGLISH,
                 compact = compact,
+                localizedFont = false,
                 onClick = { onLanguageSelected(DrawerLanguage.ENGLISH) },
                 modifier = Modifier.weight(1f),
             )
@@ -469,6 +501,7 @@ private fun LanguageSegment(
     text: String,
     selected: Boolean,
     compact: Boolean,
+    localizedFont: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -485,6 +518,7 @@ private fun LanguageSegment(
             color = if (selected) Color.White else DrawerMuted,
             fontSize = if (compact) 9.sp else 10.5.sp,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+            fontFamily = if (localizedFont) homeLocalizedFont() else null,
             maxLines = 1,
         )
     }

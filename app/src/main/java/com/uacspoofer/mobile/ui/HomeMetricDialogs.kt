@@ -93,14 +93,16 @@ internal fun HomeLogsDialog(
     entries: List<AppLogEntry>,
     onDismissRequest: () -> Unit,
 ) {
+    val isPersian = LocalHomePersian.current
+    val localizedFont = homeLocalizedFont()
     val listState = rememberLazyListState()
     LaunchedEffect(visible, entries.lastOrNull()?.id) {
         if (visible && entries.isNotEmpty()) listState.scrollToItem(entries.lastIndex)
     }
     AnimatedHomeMetricDialog(
         visible = visible,
-        title = "All logs",
-        subtitle = "${entries.size} current entries",
+        title = homeText("All logs", "همه لاگ‌ها"),
+        subtitle = if (isPersian) "${entries.size} لاگ فعلی" else "${entries.size} current entries",
         icon = Icons.Outlined.Description,
         onDismissRequest = onDismissRequest,
         expanded = true,
@@ -110,7 +112,12 @@ internal fun HomeLogsDialog(
     ) {
         if (entries.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("No log entries", color = UacColors.TextSecondary, fontSize = 13.sp)
+                Text(
+                    homeText("No log entries", "هنوز لاگی ثبت نشده"),
+                    color = UacColors.TextSecondary,
+                    fontSize = 13.sp,
+                    fontFamily = localizedFont,
+                )
             }
         } else {
             LazyColumn(
@@ -136,10 +143,13 @@ internal fun HomeCountryDialog(
     onRefresh: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
+    val isPersian = LocalHomePersian.current
+    val localizedFont = homeLocalizedFont()
+    val notReported = if (isPersian) "اعلام نشده" else "Not reported"
     AnimatedHomeMetricDialog(
         visible = visible,
-        title = "My IP Information",
-        subtitle = "Public exit details through Xray",
+        title = homeText("My IP Information", "اطلاعات IP من"),
+        subtitle = homeText("Public exit details through Xray", "مشخصات IP خروجی از طریق Xray"),
         icon = Icons.Outlined.Public,
         onDismissRequest = onDismissRequest,
     ) {
@@ -158,7 +168,12 @@ internal fun HomeCountryDialog(
                     modifier = Modifier.size(28.dp),
                 )
                 Spacer(Modifier.height(12.dp))
-                Text("Reading the active VPN exit…", color = UacColors.TextSecondary, fontSize = 12.sp)
+                Text(
+                    homeText("Reading the active VPN exit…", "در حال دریافت IP خروجی VPN…"),
+                    color = UacColors.TextSecondary,
+                    fontSize = 12.sp,
+                    fontFamily = localizedFont,
+                )
             }
         } else if (info == null) {
             Column(
@@ -170,7 +185,12 @@ internal fun HomeCountryDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text("Exit information is not ready", color = UacColors.TextPrimary, fontSize = 14.sp)
+                Text(
+                    homeText("Exit information is not ready", "اطلاعات IP خروجی هنوز آماده نیست"),
+                    color = UacColors.TextPrimary,
+                    fontSize = 14.sp,
+                    fontFamily = localizedFont,
+                )
                 state.errorMessage?.let {
                     Spacer(Modifier.height(6.dp))
                     Text(it, color = Color(0xFFFF8C98), fontSize = 11.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -179,7 +199,12 @@ internal fun HomeCountryDialog(
                 TextButton(onClick = onRefresh) {
                     Icon(Icons.Rounded.Refresh, null, tint = DialogBlue, modifier = Modifier.size(17.dp))
                     Spacer(Modifier.size(5.dp))
-                    Text("Try again", color = DialogBlue, fontSize = 11.sp)
+                    Text(
+                        homeText("Try again", "دوباره امتحان کن"),
+                        color = DialogBlue,
+                        fontSize = 11.sp,
+                        fontFamily = localizedFont,
+                    )
                 }
             }
         } else {
@@ -190,11 +215,14 @@ internal fun HomeCountryDialog(
                     .border(1.dp, DialogBorder.copy(alpha = 0.52f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 15.dp, vertical = 8.dp),
             ) {
-                    MetricDetailRow("IP address", info.ipAddress)
-                    MetricDetailRow("ISP", info.isp.ifBlank { "Not reported" })
-                    MetricDetailRow("City", info.city.ifBlank { "Not reported" })
-                    MetricDetailRow("Region", info.region.ifBlank { "Not reported" })
-                    MetricDetailRow("Country", info.country.ifBlank { info.countryCode.ifBlank { "Not reported" } })
+                    MetricDetailRow(homeText("IP address", "آدرس IP"), info.ipAddress)
+                    MetricDetailRow("ISP", info.isp.ifBlank { notReported })
+                    MetricDetailRow(homeText("City", "شهر"), info.city.ifBlank { notReported })
+                    MetricDetailRow(homeText("Region", "منطقه"), info.region.ifBlank { notReported })
+                    MetricDetailRow(
+                        homeText("Country", "کشور"),
+                        info.country.ifBlank { info.countryCode.ifBlank { notReported } },
+                    )
             }
             Spacer(Modifier.height(10.dp))
             Row(
@@ -220,16 +248,22 @@ internal fun HomeCountryDialog(
                         Icon(Icons.Rounded.Refresh, null, tint = DialogBlue, modifier = Modifier.size(17.dp))
                     }
                     Spacer(Modifier.size(5.dp))
-                    Text("Refresh", color = DialogBlue, fontSize = 11.sp)
+                    Text(
+                        homeText("Refresh", "بروزرسانی"),
+                        color = DialogBlue,
+                        fontSize = 11.sp,
+                        fontFamily = localizedFont,
+                    )
                 }
             }
             state.errorMessage?.let {
                 Text(
-                    text = "Latest refresh: $it",
+                    text = if (isPersian) "آخرین بروزرسانی: $it" else "Latest refresh: $it",
                     color = Color(0xFFFF8C98),
                     fontSize = 9.5.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    fontFamily = localizedFont,
                 )
             }
         }
@@ -242,10 +276,12 @@ internal fun HomePingDialog(
     metrics: ConnectionMetrics,
     onDismissRequest: () -> Unit,
 ) {
+    val isPersian = LocalHomePersian.current
+    val localizedFont = homeLocalizedFont()
     AnimatedHomeMetricDialog(
         visible = visible,
-        title = "Ping details",
-        subtitle = "Live HTTPS route measurement",
+        title = homeText("Ping details", "جزئیات پینگ"),
+        subtitle = homeText("Live HTTPS route measurement", "سنجش زنده مسیر HTTPS"),
         icon = Icons.Outlined.Speed,
         onDismissRequest = onDismissRequest,
     ) {
@@ -261,7 +297,12 @@ internal fun HomePingDialog(
             if (metrics.isMeasuringLatency) {
                 CircularProgressIndicator(color = DialogBlue, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
                 Spacer(Modifier.height(9.dp))
-                Text("Testing route…", color = DialogBlue, fontSize = 12.sp)
+                Text(
+                    homeText("Testing route…", "در حال تست مسیر…"),
+                    color = DialogBlue,
+                    fontSize = 12.sp,
+                    fontFamily = localizedFont,
+                )
             } else {
                 Text(
                     text = latency?.let { "$it ms" } ?: "—",
@@ -270,9 +311,10 @@ internal fun HomePingDialog(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = latencyQualityForDialog(latency),
+                    text = latencyQualityForDialog(latency, isPersian),
                     color = UacColors.TextSecondary,
                     fontSize = 11.sp,
+                    fontFamily = localizedFont,
                 )
             }
         }
@@ -283,13 +325,22 @@ internal fun HomePingDialog(
                 .background(DialogInnerSurface.copy(alpha = 0.74f), RoundedCornerShape(16.dp))
                 .padding(horizontal = 15.dp, vertical = 7.dp),
         ) {
-            MetricDetailRow("Average", metrics.averageLatencyMs.asMillis())
-            MetricDetailRow("Minimum", metrics.minimumLatencyMs.asMillis())
-            MetricDetailRow("Maximum", metrics.maximumLatencyMs.asMillis())
-            MetricDetailRow("Jitter", metrics.jitterMs.asMillis())
-            MetricDetailRow("Samples", metrics.sampleCount.takeIf { it > 0 }?.toString() ?: "—")
-            MetricDetailRow("Measured", metrics.measuredAtMs?.let(::formatTime) ?: "Waiting for sample")
-            MetricDetailRow("Method", "HTTPS payload through Xray tunnel")
+            MetricDetailRow(homeText("Average", "میانگین"), metrics.averageLatencyMs.asMillis())
+            MetricDetailRow(homeText("Minimum", "کمترین"), metrics.minimumLatencyMs.asMillis())
+            MetricDetailRow(homeText("Maximum", "بیشترین"), metrics.maximumLatencyMs.asMillis())
+            MetricDetailRow(homeText("Jitter", "نوسان"), metrics.jitterMs.asMillis())
+            MetricDetailRow(
+                homeText("Samples", "تعداد تست"),
+                metrics.sampleCount.takeIf { it > 0 }?.toString() ?: "—",
+            )
+            MetricDetailRow(
+                homeText("Measured", "زمان سنجش"),
+                metrics.measuredAtMs?.let(::formatTime) ?: homeText("Waiting for sample", "در انتظار نتیجه"),
+            )
+            MetricDetailRow(
+                homeText("Method", "روش تست"),
+                homeText("HTTPS payload through Xray tunnel", "ارسال HTTPS از تونل Xray"),
+            )
         }
     }
 }
@@ -304,10 +355,16 @@ internal fun HomeConfigsDialog(
     onManage: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
+    val isPersian = LocalHomePersian.current
+    val localizedFont = homeLocalizedFont()
     AnimatedHomeMetricDialog(
         visible = visible,
-        title = "Configurations",
-        subtitle = "${library.allProfiles.size} available • tap to select",
+        title = homeText("Configurations", "کانفیگ‌ها"),
+        subtitle = if (isPersian) {
+            "${library.allProfiles.size} کانفیگ • برای انتخاب ضربه بزن"
+        } else {
+            "${library.allProfiles.size} available • tap to select"
+        },
         icon = Icons.Outlined.Description,
         onDismissRequest = onDismissRequest,
         expanded = true,
@@ -339,7 +396,12 @@ internal fun HomeConfigsDialog(
         ) {
             Icon(Icons.Outlined.Tune, null, tint = DialogBlue, modifier = Modifier.size(17.dp))
             Spacer(Modifier.size(6.dp))
-            Text("Manage configurations", color = DialogBlue, fontSize = 11.sp)
+            Text(
+                homeText("Manage configurations", "مدیریت کانفیگ‌ها"),
+                color = DialogBlue,
+                fontSize = 11.sp,
+                fontFamily = localizedFont,
+            )
         }
     }
 }
@@ -352,6 +414,8 @@ private fun HomeConfigDialogRow(
     latencyMs: Long?,
     onClick: () -> Unit,
 ) {
+    val isPersian = LocalHomePersian.current
+    val localizedFont = homeLocalizedFont()
     val accent = if (active) UacColors.ConnectedGreen else DialogBlue
     val shape = RoundedCornerShape(14.dp)
     Row(
@@ -383,6 +447,7 @@ private fun HomeConfigDialogRow(
                     color = UacColors.TextPrimary,
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.Medium,
+                    fontFamily = localizedFont,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
@@ -405,13 +470,14 @@ private fun HomeConfigDialogRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         when {
-                active -> "Connected"
-                selected -> "Selected for next connection"
+                active -> if (isPersian) "وصل است" else "Connected"
+                selected -> if (isPersian) "برای اتصال بعدی انتخاب شده" else "Selected for next connection"
                             else -> ""
                         },
                         color = accent,
                         fontSize = 8.5.sp,
                         fontWeight = FontWeight.Medium,
+                        fontFamily = localizedFont,
                     )
                     Spacer(Modifier.weight(1f))
                     latencyMs?.let {
@@ -426,7 +492,12 @@ private fun HomeConfigDialogRow(
                 modifier = Modifier.size(27.dp).background(accent.copy(alpha = 0.13f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-            Icon(Icons.Outlined.Check, "Selected", tint = accent, modifier = Modifier.size(17.dp))
+            Icon(
+                Icons.Outlined.Check,
+                homeText("Selected", "انتخاب‌شده"),
+                tint = accent,
+                modifier = Modifier.size(17.dp),
+            )
             }
         }
     }
@@ -474,6 +545,7 @@ private fun AnimatedHomeMetricDialog(
     panelModifier: Modifier = Modifier.fillMaxWidth(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val localizedFont = homeLocalizedFont()
     var mounted by remember { mutableStateOf(visible) }
     var panelVisible by remember { mutableStateOf(false) }
     LaunchedEffect(visible) {
@@ -554,11 +626,29 @@ private fun AnimatedHomeMetricDialog(
                             }
                             Spacer(Modifier.size(11.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(title, color = UacColors.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                                Text(subtitle, color = UacColors.TextSecondary, fontSize = 10.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    title,
+                                    color = UacColors.TextPrimary,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontFamily = localizedFont,
+                                )
+                                Text(
+                                    subtitle,
+                                    color = UacColors.TextSecondary,
+                                    fontSize = 10.5.sp,
+                                    fontFamily = localizedFont,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             }
                             IconButton(onClick = onDismissRequest, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Rounded.Close, "Close", tint = UacColors.TextSecondary, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    Icons.Rounded.Close,
+                                    homeText("Close", "بستن"),
+                                    tint = UacColors.TextSecondary,
+                                    modifier = Modifier.size(20.dp),
+                                )
                             }
                         }
                         Spacer(Modifier.height(14.dp))
@@ -572,18 +662,26 @@ private fun AnimatedHomeMetricDialog(
 
 @Composable
 private fun MetricDetailRow(label: String, value: String) {
+    val localizedFont = homeLocalizedFont()
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 38.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = UacColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.weight(0.38f))
+        Text(
+            label,
+            color = UacColors.TextSecondary,
+            fontSize = 11.sp,
+            fontFamily = localizedFont,
+            modifier = Modifier.weight(0.38f),
+        )
         Text(
             text = value,
             color = UacColors.TextPrimary,
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Medium,
+            fontFamily = localizedFont,
             modifier = Modifier.weight(0.62f),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -596,6 +694,7 @@ private fun HomeDialogLogRow(entry: AppLogEntry) {
     val levelColor = when (entry.level) {
         LogLevel.DEBUG -> Color(0xFF8295AA)
         LogLevel.INFO -> DialogBlue
+        LogLevel.SUCCESS -> Color(0xFF25E49A)
         LogLevel.WARNING -> Color(0xFFFFC857)
         LogLevel.ERROR -> Color(0xFFFF6574)
     }
@@ -637,12 +736,12 @@ private fun Long?.asMillis(): String = this?.let { "$it ms" } ?: "—"
 private fun formatTime(timestampMs: Long): String =
     DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(timestampMs))
 
-private fun latencyQualityForDialog(latencyMs: Long?): String = when {
-    latencyMs == null -> "No successful sample yet"
-    latencyMs <= 120L -> "Excellent"
-    latencyMs <= 250L -> "Good"
-    latencyMs <= 500L -> "Fair"
-    else -> "Slow"
+private fun latencyQualityForDialog(latencyMs: Long?, isPersian: Boolean): String = when {
+    latencyMs == null -> if (isPersian) "هنوز نتیجه موفقی ثبت نشده" else "No successful sample yet"
+    latencyMs <= 120L -> if (isPersian) "عالی" else "Excellent"
+    latencyMs <= 250L -> if (isPersian) "خوب" else "Good"
+    latencyMs <= 500L -> if (isPersian) "متوسط" else "Fair"
+    else -> if (isPersian) "کند" else "Slow"
 }
 
 private fun latencyColorForDialog(latencyMs: Long?): Color = when {

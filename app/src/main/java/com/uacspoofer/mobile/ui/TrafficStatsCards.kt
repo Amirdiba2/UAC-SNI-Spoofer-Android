@@ -47,7 +47,7 @@ internal fun TrafficStatsRow(
         horizontalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 10.dp),
     ) {
         TrafficStatCard(
-            title = "Download",
+            title = homeText("Download", "دانلود"),
             totalBytes = stats.downloadBytes,
             bytesPerSecond = stats.downloadBytesPerSecond,
             icon = Icons.Rounded.ArrowDownward,
@@ -56,7 +56,7 @@ internal fun TrafficStatsRow(
             modifier = Modifier.weight(1f),
         )
         TrafficStatCard(
-            title = "Upload",
+            title = homeText("Upload", "آپلود"),
             totalBytes = stats.uploadBytes,
             bytesPerSecond = stats.uploadBytesPerSecond,
             icon = Icons.Rounded.ArrowUpward,
@@ -77,6 +77,7 @@ private fun TrafficStatCard(
     compact: Boolean,
     modifier: Modifier,
 ) {
+    val localizedFont = homeLocalizedFont()
     val shape = RoundedCornerShape(if (compact) 18.dp else 21.dp)
     val total = formatBytes(totalBytes)
     val rate = formatBytes(bytesPerSecond)
@@ -106,6 +107,8 @@ private fun TrafficStatCard(
                 title,
                 color = UacColors.TextSecondary,
                 fontSize = if (compact) 10.5.sp else 12.sp,
+                fontFamily = localizedFont,
+                fontWeight = if (LocalHomePersian.current) FontWeight.Medium else null,
                 maxLines = 1,
             )
             Row(

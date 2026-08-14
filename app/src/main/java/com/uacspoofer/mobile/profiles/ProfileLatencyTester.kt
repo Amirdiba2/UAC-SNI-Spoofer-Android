@@ -13,6 +13,7 @@ import com.uacspoofer.mobile.vpn.AdaptiveCandidatePlanner
 import com.uacspoofer.mobile.vpn.AdaptiveConnectionProbe
 import com.uacspoofer.mobile.vpn.AdaptiveDnsResolvers
 import com.uacspoofer.mobile.vpn.AdaptiveProfileStore
+import com.uacspoofer.mobile.vpn.AdaptiveSavedRoute
 import com.uacspoofer.mobile.vpn.NetworkFingerprint
 import com.uacspoofer.mobile.vpn.NetworkFingerprintResolver
 import com.uacspoofer.mobile.vpn.SocksDnsProbe
@@ -59,6 +60,37 @@ data class SniMakerTestSession(
     val settings: com.uacspoofer.mobile.settings.AdvancedSettingsData,
     val network: NetworkFingerprint,
     val initialPreferredCandidateId: String?,
+)
+
+data class RouteSpeedTestPlan(
+    val profile: ProxyProfile,
+    val session: SniMakerTestSession,
+    val signature: String,
+    val candidates: List<AdaptiveCandidate>,
+    val savedChampionId: String?,
+    val savedChampionLabel: String?,
+    val savedChampion: AdaptiveSavedRoute?,
+    val savedBackupId: String?,
+    val savedBackupLabel: String?,
+    val savedBackup: AdaptiveSavedRoute?,
+)
+
+enum class RouteSpeedProbeStage { STARTING, PROBING }
+
+data class RouteSpeedProbeResult(
+    val candidate: AdaptiveCandidate,
+    val accepted: Boolean,
+    val score: Int,
+    val latencyMs: Long?,
+    val dnsLatencyMs: Long?,
+    val payloadBytes: Int,
+    val durationMs: Long,
+    val throughputKbps: Long,
+    val httpSucceeded: Int,
+    val httpAttempted: Int,
+    val dnsSucceeded: Boolean,
+    val detail: String,
+    val error: String? = null,
 )
 
 enum class SniCandidateStage { STARTING, PROBING, REJECTED, FAILED, PASSED, EXHAUSTED }
@@ -119,6 +151,149 @@ class ProfileLatencyTester(context: Context) {
             "SNI Maker adaptive session network=${network.summary()} preferred=${preferred ?: "none"}",
         )
         SniMakerTestSession(settings, network, preferred)
+    }
+
+    suspend fun prepareRouteSpeedTest(): RouteSpeedTestPlan = withContext(Dispatchers.IO) {
+        val settings = settingsStore.snapshot().validated()
+        val network = fingerprintResolver.captureAdaptive()
+        val profile = profileStore.selectedProfile()
+        val candidates = adaptivePlanner.routeSpeedCandidates(settings, network, profile)
+        val signature = adaptivePlanner.signature(settings, profile)
+        val savedChampion = adaptiveProfileStore.savedRoute(network, profile, signature)
+        val savedBackup = adaptiveProfileStore.savedBackupRoute(network, profile, signature)
+        AppLogRepository.info(
+            LogSource.APP,
+            "Route Speed Test plan profile=${profile.name} network=${network.summary()} " +
+                "candidates=${candidates.joinToString { it.id }}",
+        )
+        RouteSpeedTestPlan(
+            profile = profile,
+            session = SniMakerTestSession(
+                settings = settings,
+                network = network,
+                initialPreferredCandidateId = candidates.firstOrNull(AdaptiveCandidate::learned)?.id,
+            ),
+            signature = signature,
+            candidates = candidates,
+            savedChampionId = savedChampion?.id,
+            savedChampionLabel = savedChampion?.label,
+            savedChampion = savedChampion,
+            savedBackupId = savedBackup?.id,
+            savedBackupLabel = savedBackup?.label,
+            savedBackup = savedBackup,
+        )
+    }
+
+    suspend fun measureRouteSpeedCandidate(
+        plan: RouteSpeedTestPlan,
+        candidate: AdaptiveCandidate,
+        onStage: suspend (RouteSpeedProbeStage) -> Unit = {},
+    ): RouteSpeedProbeResult = withContext(Dispatchers.IO) {
+        val reservedPort = reservePort()
+        val probeSettings = candidate.settings.copy(
+            connectionMode = CONNECTION_MODE_PROXY,
+            socksAddress = "127.0.0.1",
+            socksPort = reservedPort,
+            socksUdp = false,
+        ).validated()
+        val probeCandidate = candidate.copy(settings = probeSettings)
+        val core = MciXrayCore(appContext)
+        try {
+            onStage(RouteSpeedProbeStage.STARTING)
+            val report = withTimeoutOrNull(ROUTE_SPEED_CANDIDATE_TIMEOUT_MS) {
+                core.start(candidate.edge, probeSettings, plan.profile, candidate.runtimeOptions)
+                delay(ROUTE_SPEED_WARMUP_MS)
+                onStage(RouteSpeedProbeStage.PROBING)
+                adaptiveProbe.verifyForRouteSpeed(probeCandidate)
+            } ?: throw SocketTimeoutException(
+                "Route ${candidate.id} timed out after ${ROUTE_SPEED_CANDIDATE_TIMEOUT_MS}ms",
+            )
+            val transferMs = report.http.durationMs.coerceAtLeast(1L)
+            val throughputKbps = (report.http.totalBytes.toLong() * 8L / transferMs).coerceAtLeast(0L)
+            AppLogRepository.info(
+                LogSource.APP,
+                "Route Speed Test candidate=${candidate.id} profile=${plan.profile.name} " +
+                    "throughputKbps=$throughputKbps ${report.detail()}",
+            )
+            RouteSpeedProbeResult(
+                candidate = candidate,
+                accepted = report.accepted,
+                score = report.score,
+                latencyMs = report.http.latencyMs,
+                dnsLatencyMs = report.dns.latencyMs,
+                payloadBytes = report.http.totalBytes,
+                durationMs = report.durationMs,
+                throughputKbps = throughputKbps,
+                httpSucceeded = report.http.succeededTargets,
+                httpAttempted = report.http.attemptedTargets,
+                dnsSucceeded = report.dns.success,
+                detail = report.detail(),
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            val detail = error.uiMessage()
+            AppLogRepository.warning(
+                LogSource.APP,
+                "Route Speed Test candidate=${candidate.id} profile=${plan.profile.name} failed",
+                error,
+            )
+            RouteSpeedProbeResult(
+                candidate = candidate,
+                accepted = false,
+                score = 0,
+                latencyMs = null,
+                dnsLatencyMs = null,
+                payloadBytes = 0,
+                durationMs = 0L,
+                throughputKbps = 0L,
+                httpSucceeded = 0,
+                httpAttempted = 0,
+                dnsSucceeded = false,
+                detail = detail,
+                error = detail,
+            )
+        } finally {
+            runCatching { core.stop() }
+                .onFailure { AppLogRepository.warning(LogSource.XRAY, "Route Speed Test core cleanup failed", it) }
+            releasePort(reservedPort)
+        }
+    }
+
+    fun selectRouteWinner(
+        plan: RouteSpeedTestPlan,
+        candidateId: String,
+        score: Int,
+        backupCandidateId: String? = null,
+        backupScore: Int = 0,
+    ): Boolean {
+        val candidate = plan.candidates.firstOrNull { it.id == candidateId } ?: return false
+        adaptiveProfileStore.recordSavedRoute(
+            network = plan.session.network,
+            profile = plan.profile,
+            signature = plan.signature,
+            candidate = candidate,
+            score = score,
+        )
+        val backup = backupCandidateId
+            ?.takeIf { it != candidateId }
+            ?.let { id -> plan.candidates.firstOrNull { it.id == id } }
+        if (backup != null) {
+            adaptiveProfileStore.recordSavedBackupRoute(
+                network = plan.session.network,
+                profile = plan.profile,
+                signature = plan.signature,
+                candidate = backup,
+                score = backupScore,
+            )
+        }
+        AppLogRepository.info(
+            LogSource.APP,
+            "Route Speed Test selected candidate=${candidate.id} profile=${plan.profile.name} " +
+                "network=${plan.session.network.learningKey()} score=$score " +
+                "backup=${backup?.id ?: "none"} backupScore=$backupScore",
+        )
+        return true
     }
 
     suspend fun measureForSniMaker(
@@ -694,6 +869,8 @@ class ProfileLatencyTester(context: Context) {
         private const val MIN_ROUTE_BUDGET_MS = 1_000L
         private const val MAX_ROUTE_BUDGET_MS = 7_500L
         private const val SNI_MAKER_WARMUP_MS = 100L
+        private const val ROUTE_SPEED_CANDIDATE_TIMEOUT_MS = 12_000L
+        private const val ROUTE_SPEED_WARMUP_MS = 150L
         private const val COUNTRY_TIMEOUT_MS = 3_500
         private const val COUNTRY_PROVIDER_TIMEOUT_MS = 2_200
         private const val COUNTRY_TOTAL_TIMEOUT_MS = 2_750L
